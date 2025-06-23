@@ -264,10 +264,17 @@ class MediaDownloader {
     // HYBRID APPROACH: Use streaming for platforms that work well, file-based for secure platforms
     switch (platform) {
       case "youtube":
-        // ✅ STREAMING - Works great with browser progress
+        // ✅ STREAMING - Use yt-dlp built-in streaming for best performance
         const type = document.getElementById("youtube-type").value
         const quality = document.getElementById("youtube-quality").value
-        return `/stream/${type}?song=${encodedUrl}&quality=${quality}`
+
+        if (type === "audio") {
+          // Use the superior streaming endpoint for audio
+          return `/download/audio/stream?song=${encodedUrl}&quality=${quality}`
+        } else {
+          // Use direct streaming for video
+          return `/download/${type}?song=${encodedUrl}&quality=${quality}`
+        }
 
       case "x":
         // ✅ STREAMING - Works well for X/Twitter
@@ -324,7 +331,7 @@ class MediaDownloader {
   // Method to get download method info for debugging
   getDownloadMethod(platform) {
     const methods = {
-      youtube: "🚀 Streaming (Fast with browser progress)",
+      youtube: "🚀 yt-dlp Streaming (Ultra-fast with browser progress)",
       x: "🚀 Streaming (Fast with browser progress)",
       tiktok: "📁 File-based (Reliable for secure platform)",
       instagram: "📁 File-based (Reliable for secure platform)",
