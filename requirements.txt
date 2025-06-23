@@ -1,7 +1,9 @@
 fastapi
 uvicorn[standard]
 yt-dlp
-aiohttp
+requests
+aiofiles
 python-multipart
 uvloop
 fastapi[standard]
+aiohttp
