@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+yt-dlp
+requests
+aiofiles
+python-multipart
+uvloop
+fastapi[standard]
