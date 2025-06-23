@@ -99,19 +99,37 @@ async def get_tiktok_info_and_url(url: str, format_selector: str) -> tuple[str, 
         raise HTTPException(status_code=500, detail="Failed to parse TikTok info")
 
 async def stream_from_url(url: str, chunk_size: int = 2097152) -> AsyncGenerator[bytes, None]:
-    """Stream content directly from URL with 2MB chunks"""
+    """Stream content directly from URL with 2MB chunks and better error handling"""
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': '*/*',
         'Accept-Language': 'en-US,en;q=0.9',
-        'Referer': 'https://www.tiktok.com/'
+        'Accept-Encoding': 'identity',
+        'Referer': 'https://www.tiktok.com/',
+        'Origin': 'https://www.tiktok.com',
+        'Sec-Fetch-Dest': 'video',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'same-site'
     }
     
     timeout = aiohttp.ClientTimeout(total=None, connect=30)
     
     async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
         try:
-            async with session.get(url) as response:
+            async with session.get(url, allow_redirects=True) as response:
+                if response.status == 403:
+                    # Try with different headers for 403 errors
+                    headers['User-Agent'] = 'TikTok 26.2.0 rv:262018 (iPhone; iOS 14.4.2; en_US) Cronet'
+                    headers['Accept'] = 'video/mp4,video/*;q=0.9,*/*;q=0.8'
+                    
+                    async with session.get(url, headers=headers, allow_redirects=True) as retry_response:
+                        if retry_response.status not in [200, 206]:
+                            raise HTTPException(status_code=500, detail=f"TikTok media blocked: HTTP {retry_response.status}")
+                        
+                        async for chunk in retry_response.content.iter_chunked(chunk_size):
+                            yield chunk
+                        return
+                
                 if response.status not in [200, 206]:
                     raise HTTPException(status_code=500, detail=f"Failed to fetch TikTok media: HTTP {response.status}")
                 
