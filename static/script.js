@@ -232,8 +232,8 @@ class MediaDownloader {
     button.disabled = true
 
     try {
-      // Build the STREAMING download URL (faster)
-      const downloadUrl = this.buildStreamingDownloadUrl(platform, url)
+      // Use HYBRID approach: streaming for fast platforms, file-based for secure platforms
+      const downloadUrl = this.buildHybridDownloadUrl(platform, url)
 
       // Show "Starting download..." when we hit the API
       this.showDownloadStatus(platform)
@@ -258,33 +258,34 @@ class MediaDownloader {
     }
   }
 
-  buildStreamingDownloadUrl(platform, url) {
+  buildHybridDownloadUrl(platform, url) {
     const encodedUrl = encodeURIComponent(url)
 
+    // HYBRID APPROACH: Use streaming for platforms that work well, file-based for secure platforms
     switch (platform) {
       case "youtube":
+        // ✅ STREAMING - Works great with browser progress
         const type = document.getElementById("youtube-type").value
         const quality = document.getElementById("youtube-quality").value
-        // Use NEW streaming endpoints for faster downloads
         return `/stream/${type}?song=${encodedUrl}&quality=${quality}`
 
+      case "x":
+        // ✅ STREAMING - Works well for X/Twitter
+        return `/stream/xurl?url=${encodedUrl}`
+
       case "tiktok":
+        // 🔒 FILE-BASED - TikTok has strong security, use reliable original endpoints
         const tiktokType = document.getElementById("tiktok-type").value
         const endpoint = tiktokType === "video" ? "tiktokurl" : "tiktoaudio"
-        // Use NEW streaming endpoints for faster downloads
-        return `/stream/${endpoint}?url=${encodedUrl}`
+        return `/api/${endpoint}?url=${encodedUrl}`
 
       case "instagram":
-        // Use NEW streaming endpoint for faster downloads
-        return `/stream/iglink?url=${encodedUrl}`
+        // 🔒 FILE-BASED - Instagram requires authentication, use original endpoint
+        return `/download/iglink?url=${encodedUrl}`
 
       case "facebook":
-        // Use NEW streaming endpoint for faster downloads
-        return `/stream/fburl?url=${encodedUrl}`
-
-      case "x":
-        // Use NEW streaming endpoint for faster downloads
-        return `/stream/xurl?url=${encodedUrl}`
+        // 🔒 FILE-BASED - Facebook has encoding issues with streaming, use original endpoint
+        return `/api/fburl?url=${encodedUrl}`
 
       default:
         throw new Error("Unsupported platform")
@@ -319,6 +320,18 @@ class MediaDownloader {
         throw new Error("Unsupported platform")
     }
   }
+
+  // Method to get download method info for debugging
+  getDownloadMethod(platform) {
+    const methods = {
+      youtube: "🚀 Streaming (Fast with browser progress)",
+      x: "🚀 Streaming (Fast with browser progress)",
+      tiktok: "📁 File-based (Reliable for secure platform)",
+      instagram: "📁 File-based (Reliable for secure platform)",
+      facebook: "📁 File-based (Reliable for secure platform)",
+    }
+    return methods[platform] || "Unknown"
+  }
 }
 
 // Initialize the app when DOM is loaded
@@ -333,4 +346,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Initialize YouTube quality options
   downloader.updateYouTubeQuality()
+
+  // Log download methods for debugging (can be removed in production)
+  console.log("🔧 Download Methods:")
+  console.log("YouTube:", downloader.getDownloadMethod("youtube"))
+  console.log("X/Twitter:", downloader.getDownloadMethod("x"))
+  console.log("TikTok:", downloader.getDownloadMethod("tiktok"))
+  console.log("Instagram:", downloader.getDownloadMethod("instagram"))
+  console.log("Facebook:", downloader.getDownloadMethod("facebook"))
 })
