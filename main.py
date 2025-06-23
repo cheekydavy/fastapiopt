@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -13,8 +13,8 @@ from modules.facebook import router as facebook_router
 from modules.x import router as x_router
 
 app = FastAPI(
-    title="Media Downloader API - Streaming Edition",
-    description="High-performance streaming media downloader supporting YouTube, TikTok, Instagram, Facebook, and X/Twitter",
+    title="Direct Streaming Media Downloader",
+    description="True streaming media downloader with browser progress - no server storage needed",
     version="3.0.0"
 )
 
@@ -45,18 +45,18 @@ async def home():
         return HTMLResponse(content=static_path.read_text(), status_code=200)
     return HTMLResponse("""
     <html>
-        <head><title>Streaming Media Downloader</title></head>
+        <head><title>Direct Streaming Media Downloader</title></head>
         <body>
-            <h1>Streaming Media Downloader API</h1>
-            <p>Now with streaming downloads for faster performance!</p>
+            <h1>Direct Streaming Media Downloader</h1>
+            <p>Now with true browser streaming - see download progress in real-time!</p>
             <ul>
-                <li>/download/audio - Stream YouTube audio</li>
-                <li>/download/video - Stream YouTube video</li>
-                <li>/api/tiktokurl - Stream TikTok video</li>
-                <li>/api/tiktoaudio - Stream TikTok audio</li>
-                <li>/download/iglink - Stream Instagram media</li>
-                <li>/api/fburl - Stream Facebook video</li>
-                <li>/api/xurl - Stream X/Twitter video</li>
+                <li>/download/audio - Direct stream YouTube audio</li>
+                <li>/download/video - Direct stream YouTube video</li>
+                <li>/api/tiktokurl - Direct stream TikTok video</li>
+                <li>/api/tiktoaudio - Direct stream TikTok audio</li>
+                <li>/download/iglink - Direct stream Instagram media</li>
+                <li>/api/fburl - Direct stream Facebook video</li>
+                <li>/api/xurl - Direct stream X/Twitter video</li>
             </ul>
             <p><a href="/docs">API Documentation</a></p>
         </body>
@@ -68,9 +68,9 @@ async def health_check():
     """Health check endpoint"""
     return {
         "status": "ok", 
-        "message": "Streaming Media Downloader API is running",
+        "message": "Direct Streaming Media Downloader API is running",
         "version": "3.0.0",
-        "features": ["streaming_downloads", "no_temp_files", "faster_response"]
+        "features": ["direct_streaming", "browser_progress", "no_server_download", "instant_start"]
     }
 
 if __name__ == "__main__":
