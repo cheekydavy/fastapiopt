@@ -409,6 +409,29 @@ header p {
   font-size: 1.25rem;
   font-weight: 600;
   color: #2c3e50;
+  flex: 1;
+}
+
+/* Download Method Badges */
+.download-method {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.download-method.streaming {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.download-method.file-based {
+  background: linear-gradient(135deg, #48bb78, #38a169);
+  color: white;
+  box-shadow: 0 2px 8px rgba(72, 187, 120, 0.3);
 }
 
 .card p {
@@ -1068,6 +1091,25 @@ section {
 
 .footer-section a:hover {
   color: #667eea;
+}
+
+/* Method badges in footer */
+.method-badge {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 8px;
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
+.method-badge.streaming {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+}
+
+.method-badge.secure {
+  background: linear-gradient(135deg, #48bb78, #38a169);
+  color: white;
 }
 
 .social-links {
