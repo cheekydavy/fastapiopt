@@ -339,4 +339,3 @@ async def download_youtube_audio_stream(
     except Exception as e:
         logger.error(f"YouTube audio stream error: {e}")
         raise HTTPException(status_code=500, detail=f"Streaming failed: {str(e)}")
-</merged_code>
