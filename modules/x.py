@@ -69,18 +69,24 @@ async def get_x_info_and_url(url: str) -> tuple[str, str, str]:
         raise HTTPException(status_code=500, detail="Failed to parse X info")
 
 async def stream_from_url(url: str, chunk_size: int = 2097152) -> AsyncGenerator[bytes, None]:
-    """Stream content directly from URL with 2MB chunks"""
+    """Stream content directly from URL with 2MB chunks and Twitter-specific headers"""
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': '*/*',
-        'Accept-Language': 'en-US,en;q=0.9'
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'identity',
+        'Referer': 'https://x.com/',
+        'Origin': 'https://x.com',
+        'Sec-Fetch-Dest': 'video',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'cross-site'
     }
     
     timeout = aiohttp.ClientTimeout(total=None, connect=30)
     
     async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
         try:
-            async with session.get(url) as response:
+            async with session.get(url, allow_redirects=True) as response:
                 if response.status not in [200, 206]:
                     raise HTTPException(status_code=500, detail=f"Failed to fetch X media: HTTP {response.status}")
                 
