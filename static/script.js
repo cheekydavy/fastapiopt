@@ -232,8 +232,8 @@ class MediaDownloader {
     button.disabled = true
 
     try {
-      // Build the download URL
-      const downloadUrl = this.buildDownloadUrl(platform, url)
+      // Build the STREAMING download URL (faster)
+      const downloadUrl = this.buildStreamingDownloadUrl(platform, url)
 
       // Show "Starting download..." when we hit the API
       this.showDownloadStatus(platform)
@@ -258,6 +258,40 @@ class MediaDownloader {
     }
   }
 
+  buildStreamingDownloadUrl(platform, url) {
+    const encodedUrl = encodeURIComponent(url)
+
+    switch (platform) {
+      case "youtube":
+        const type = document.getElementById("youtube-type").value
+        const quality = document.getElementById("youtube-quality").value
+        // Use NEW streaming endpoints for faster downloads
+        return `/stream/${type}?song=${encodedUrl}&quality=${quality}`
+
+      case "tiktok":
+        const tiktokType = document.getElementById("tiktok-type").value
+        const endpoint = tiktokType === "video" ? "tiktokurl" : "tiktoaudio"
+        // Use NEW streaming endpoints for faster downloads
+        return `/stream/${endpoint}?url=${encodedUrl}`
+
+      case "instagram":
+        // Use NEW streaming endpoint for faster downloads
+        return `/stream/iglink?url=${encodedUrl}`
+
+      case "facebook":
+        // Use NEW streaming endpoint for faster downloads
+        return `/stream/fburl?url=${encodedUrl}`
+
+      case "x":
+        // Use NEW streaming endpoint for faster downloads
+        return `/stream/xurl?url=${encodedUrl}`
+
+      default:
+        throw new Error("Unsupported platform")
+    }
+  }
+
+  // Keep original method for backward compatibility
   buildDownloadUrl(platform, url) {
     const encodedUrl = encodeURIComponent(url)
 
