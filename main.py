@@ -1,5 +1,5 @@
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -13,24 +13,24 @@ from modules.facebook import router as facebook_router
 from modules.x import router as x_router
 
 app = FastAPI(
-    title="Direct Streaming Media Downloader",
-    description="True streaming media downloader with browser progress - no server storage needed",
+    title="Media Downloader API - Hybrid Edition",
+    description="High-performance media downloader with both traditional and streaming endpoints supporting YouTube, TikTok, Instagram, Facebook, and X/Twitter",
     version="3.0.0"
 )
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Allows all origins
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Allows all methods including OPTIONS
+    allow_headers=["*"],  # Allows all headers
 )
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Include routers
+# Include routers with original endpoint structure
 app.include_router(youtube_router, tags=["YouTube"])
 app.include_router(tiktok_router, tags=["TikTok"])  
 app.include_router(instagram_router, tags=["Instagram"])
@@ -45,18 +45,29 @@ async def home():
         return HTMLResponse(content=static_path.read_text(), status_code=200)
     return HTMLResponse("""
     <html>
-        <head><title>Direct Streaming Media Downloader</title></head>
+        <head><title>Media Downloader - Hybrid Edition</title></head>
         <body>
-            <h1>Direct Streaming Media Downloader</h1>
-            <p>Now with true browser streaming - see download progress in real-time!</p>
+            <h1>Media Downloader API - Hybrid Edition</h1>
+            <p>Now with both traditional and streaming endpoints!</p>
+            <h3>Traditional Endpoints (File-based):</h3>
             <ul>
-                <li>/download/audio - Direct stream YouTube audio</li>
-                <li>/download/video - Direct stream YouTube video</li>
-                <li>/api/tiktokurl - Direct stream TikTok video</li>
-                <li>/api/tiktoaudio - Direct stream TikTok audio</li>
-                <li>/download/iglink - Direct stream Instagram media</li>
-                <li>/api/fburl - Direct stream Facebook video</li>
-                <li>/api/xurl - Direct stream X/Twitter video</li>
+                <li>/download/audio - Download YouTube audio</li>
+                <li>/download/video - Download YouTube video</li>
+                <li>/api/tiktokurl - Download TikTok video</li>
+                <li>/api/tiktoaudio - Download TikTok audio</li>
+                <li>/download/iglink - Download Instagram media</li>
+                <li>/api/fburl - Download Facebook video</li>
+                <li>/api/xurl - Download X/Twitter video</li>
+            </ul>
+            <h3>Streaming Endpoints (Fast):</h3>
+            <ul>
+                <li>/stream/audio - Stream YouTube audio</li>
+                <li>/stream/video - Stream YouTube video</li>
+                <li>/stream/tiktokurl - Stream TikTok video</li>
+                <li>/stream/tiktoaudio - Stream TikTok audio</li>
+                <li>/stream/iglink - Stream Instagram media</li>
+                <li>/stream/fburl - Stream Facebook video</li>
+                <li>/stream/xurl - Stream X/Twitter video</li>
             </ul>
             <p><a href="/docs">API Documentation</a></p>
         </body>
@@ -68,9 +79,13 @@ async def health_check():
     """Health check endpoint"""
     return {
         "status": "ok", 
-        "message": "Direct Streaming Media Downloader API is running",
+        "message": "Media Downloader API is running - Hybrid Edition",
         "version": "3.0.0",
-        "features": ["direct_streaming", "browser_progress", "no_server_download", "instant_start"]
+        "features": ["traditional_downloads", "streaming_downloads", "browser_progress"],
+        "services": {
+            "main_api": "running",
+            "streaming_api": "running"
+        }
     }
 
 if __name__ == "__main__":
