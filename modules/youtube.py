@@ -84,19 +84,48 @@ async def get_video_info_and_url(url: str, format_selector: str, cookies_file: O
         raise HTTPException(status_code=500, detail="No video information received")
     
     try:
-        info = json.loads(stdout.decode())
+        # Handle multiple JSON objects (for video+audio format)
+        json_lines = [line.strip() for line in stdout.decode().strip().split('\n') if line.strip()]
         
-        # Get the direct URL
-        direct_url = info.get('url')
+        # Try to find the best format
+        direct_url = None
+        title = 'unknown'
+        ext = 'mp4'
+        
+        for json_line in json_lines:
+            try:
+                info = json.loads(json_line)
+                
+                # Get the direct URL
+                url_candidate = info.get('url')
+                if url_candidate and url_candidate.startswith('http'):
+                    direct_url = url_candidate
+                    title = info.get('title', title)
+                    ext = info.get('ext', ext)
+                    break
+                    
+            except json.JSONDecodeError:
+                continue
+        
+        # If no direct URL found, try alternative approach
         if not direct_url:
-            # Try alternative URL fields
-            direct_url = info.get('manifest_url') or info.get('fragment_base_url')
+            # Try with simpler format selector
+            simple_cmd = f'yt-dlp --dump-json -f "best" {cookies_option} "{url}"'
+            process = await asyncio.create_subprocess_shell(
+                simple_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await process.communicate()
             
+            if stdout.strip():
+                info = json.loads(stdout.decode())
+                direct_url = info.get('url')
+                title = info.get('title', 'unknown')
+                ext = info.get('ext', 'mp4')
+        
         if not direct_url or not direct_url.startswith('http'):
             raise HTTPException(status_code=500, detail="No valid direct URL found")
-        
-        title = info.get('title', 'unknown')
-        ext = info.get('ext', 'mp4')
         
         logger.info(f"Got direct URL: {direct_url[:100]}...")
         
@@ -359,17 +388,17 @@ async def stream_youtube_video(
     cookies_file = get_cookies_file()
     
     try:
-        # Quality format mapping
+        # Simplified quality format mapping for better compatibility
         quality_formats = {
-            '144p': 'bestvideo[height<=144]+bestaudio/best[height<=144]',
-            '240p': 'bestvideo[height<=240]+bestaudio/best[height<=240]',
-            '360p': 'bestvideo[height<=360]+bestaudio/best[height<=360]',
-            '480p': 'bestvideo[height<=480]+bestaudio/best[height<=480]',
-            '720p': 'bestvideo[height<=720]+bestaudio/best[height<=720]',
-            '1080p': 'bestvideo[height<=1080]+bestaudio/best[height<=1080]'
+            '144p': 'worst[height<=144]/worst',
+            '240p': 'worst[height<=240]/worst',
+            '360p': 'best[height<=360]/best[height<=480]/best',
+            '480p': 'best[height<=480]/best[height<=720]/best',
+            '720p': 'best[height<=720]/best',
+            '1080p': 'best[height<=1080]/best'
         }
         
-        format_selector = quality_formats.get(video_quality, 'bestvideo[height<=720]+bestaudio/best')
+        format_selector = quality_formats.get(video_quality, 'best')
         
         # Get video info and direct URL
         direct_url, title, ext = await get_video_info_and_url(song, format_selector, cookies_file)
