@@ -1,5 +1,5 @@
-from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -13,24 +13,24 @@ from modules.facebook import router as facebook_router
 from modules.x import router as x_router
 
 app = FastAPI(
-    title="Media Downloader API",
-    description="High-performance media downloader supporting YouTube, TikTok, Instagram, Facebook, and X/Twitter",
-    version="2.0.0"
+    title="Media Downloader API - Streaming Edition",
+    description="High-performance streaming media downloader supporting YouTube, TikTok, Instagram, Facebook, and X/Twitter",
+    version="3.0.0"
 )
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods including OPTIONS
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Include routers with original endpoint structure
+# Include routers
 app.include_router(youtube_router, tags=["YouTube"])
 app.include_router(tiktok_router, tags=["TikTok"])  
 app.include_router(instagram_router, tags=["Instagram"])
@@ -45,18 +45,18 @@ async def home():
         return HTMLResponse(content=static_path.read_text(), status_code=200)
     return HTMLResponse("""
     <html>
-        <head><title>Media Downloader</title></head>
+        <head><title>Streaming Media Downloader</title></head>
         <body>
-            <h1>Media Downloader API</h1>
-            <p>Frontend not found. Available endpoints:</p>
+            <h1>Streaming Media Downloader API</h1>
+            <p>Now with streaming downloads for faster performance!</p>
             <ul>
-                <li>/download/audio - Download YouTube audio</li>
-                <li>/download/video - Download YouTube video</li>
-                <li>/api/tiktokurl - Download TikTok video</li>
-                <li>/api/tiktoaudio - Download TikTok audio</li>
-                <li>/download/iglink - Download Instagram media</li>
-                <li>/api/fburl - Download Facebook video</li>
-                <li>/api/xurl - Download X/Twitter video</li>
+                <li>/download/audio - Stream YouTube audio</li>
+                <li>/download/video - Stream YouTube video</li>
+                <li>/api/tiktokurl - Stream TikTok video</li>
+                <li>/api/tiktoaudio - Stream TikTok audio</li>
+                <li>/download/iglink - Stream Instagram media</li>
+                <li>/api/fburl - Stream Facebook video</li>
+                <li>/api/xurl - Stream X/Twitter video</li>
             </ul>
             <p><a href="/docs">API Documentation</a></p>
         </body>
@@ -68,10 +68,9 @@ async def health_check():
     """Health check endpoint"""
     return {
         "status": "ok", 
-        "message": "Media Downloader API is running",
-        "services": {
-            "main_api": "running"
-        }
+        "message": "Streaming Media Downloader API is running",
+        "version": "3.0.0",
+        "features": ["streaming_downloads", "no_temp_files", "faster_response"]
     }
 
 if __name__ == "__main__":
