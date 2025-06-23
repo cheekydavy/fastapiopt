@@ -69,18 +69,38 @@ async def get_facebook_info_and_url(url: str) -> tuple[str, str, str]:
         raise HTTPException(status_code=500, detail="Failed to parse Facebook info")
 
 async def stream_from_url(url: str, chunk_size: int = 2097152) -> AsyncGenerator[bytes, None]:
-    """Stream content directly from URL with 2MB chunks"""
+    """Stream content directly from URL with 2MB chunks and proper encoding"""
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': '*/*',
-        'Accept-Language': 'en-US,en;q=0.9'
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'identity',
+        'Referer': 'https://www.facebook.com/'
     }
     
     timeout = aiohttp.ClientTimeout(total=None, connect=30)
     
+    # Ensure URL is properly encoded
+    try:
+        # Parse and reconstruct URL to handle encoding issues
+        from urllib.parse import urlparse, urlunparse, quote
+        parsed = urlparse(url)
+        # Re-encode the path and query to handle special characters
+        safe_url = urlunparse((
+            parsed.scheme,
+            parsed.netloc,
+            quote(parsed.path.encode('utf-8'), safe='/'),
+            parsed.params,
+            quote(parsed.query.encode('utf-8'), safe='&='),
+            parsed.fragment
+        ))
+    except Exception as e:
+        logger.warning(f"URL encoding issue, using original: {e}")
+        safe_url = url
+    
     async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
         try:
-            async with session.get(url) as response:
+            async with session.get(safe_url, allow_redirects=True) as response:
                 if response.status not in [200, 206]:
                     raise HTTPException(status_code=500, detail=f"Failed to fetch Facebook media: HTTP {response.status}")
                 
@@ -90,6 +110,9 @@ async def stream_from_url(url: str, chunk_size: int = 2097152) -> AsyncGenerator
         except aiohttp.ClientError as e:
             logger.error(f"Facebook streaming error: {e}")
             raise HTTPException(status_code=500, detail=f"Streaming error: {str(e)}")
+        except UnicodeEncodeError as e:
+            logger.error(f"Facebook URL encoding error: {e}")
+            raise HTTPException(status_code=500, detail="URL contains invalid characters")
 
 # ORIGINAL ENDPOINT (KEEP AS-IS)
 @router.get("/api/fburl")
