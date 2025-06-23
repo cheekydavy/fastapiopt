@@ -1,9 +1,13 @@
-from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
+from fastapi.responses import FileResponse, StreamingResponse
 import asyncio
+import yt_dlp
+import uuid
 import logging
+from pathlib import Path
 from typing import AsyncGenerator
 import json
+import aiohttp
 
 router = APIRouter()
 
@@ -11,13 +15,23 @@ router = APIRouter()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-async def get_x_info(url: str) -> str:
-    """Get X/Twitter video info"""
+def cleanup_file(file_path: Path):
+    """Background task to cleanup temporary files"""
+    try:
+        if file_path.exists():
+            file_path.unlink()
+            logger.info(f"Cleaned up temp file: {file_path}")
+    except Exception as e:
+        logger.error(f"Failed to cleanup {file_path}: {e}")
+
+async def get_x_info_and_url(url: str) -> tuple[str, str, str]:
+    """Get X/Twitter info and direct URL using JSON output"""
     cmd = [
         "yt-dlp",
         "--dump-json",
         "--quiet",
         "--no-warnings",
+        "-f", "best",
         url
     ]
     
@@ -29,76 +43,130 @@ async def get_x_info(url: str) -> str:
     
     stdout, stderr = await process.communicate()
     
-    try:
-        if stdout:
-            info = json.loads(stdout.decode())
-            return info.get('title', 'x_video')
-    except Exception as e:
-        logger.error(f"Failed to extract X info: {e}")
+    if stderr and "ERROR" in stderr.decode():
+        logger.error(f"X yt-dlp error: {stderr.decode()}")
+        raise HTTPException(status_code=500, detail="Failed to get X info")
     
-    return 'x_video'
-
-async def stream_x_download(url: str) -> AsyncGenerator[bytes, None]:
-    """Stream X/Twitter download"""
-    cmd = [
-        "yt-dlp",
-        "--quiet",
-        "--no-warnings",
-        "-f", "best",
-        "-o", "-",
-        url
-    ]
-    
-    logger.info(f"Starting X/Twitter stream download")
-    
-    process = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
-    )
+    if not stdout.strip():
+        raise HTTPException(status_code=500, detail="No X info received")
     
     try:
-        while True:
-            chunk = await process.stdout.read(8192)
-            if not chunk:
-                break
-            yield chunk
+        info = json.loads(stdout.decode())
         
-        await process.wait()
+        direct_url = info.get('url')
+        if not direct_url or not direct_url.startswith('http'):
+            raise HTTPException(status_code=500, detail="No valid X URL found")
         
-        if process.returncode != 0:
-            stderr_output = await process.stderr.read()
-            logger.error(f"X download error: {stderr_output.decode()}")
-            raise HTTPException(status_code=500, detail="X download failed")
-            
-    except Exception as e:
-        logger.error(f"X streaming error: {e}")
-        if process.returncode is None:
-            process.terminate()
-            await process.wait()
-        raise HTTPException(status_code=500, detail=f"Streaming failed: {str(e)}")
+        title = info.get('title', 'x_video')
+        ext = info.get('ext', 'mp4')
+        
+        logger.info(f"Got X direct URL: {direct_url[:100]}...")
+        
+        return direct_url, title, ext
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"X JSON decode error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to parse X info")
 
+async def stream_from_url(url: str, chunk_size: int = 2097152) -> AsyncGenerator[bytes, None]:
+    """Stream content directly from URL with 2MB chunks"""
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': '*/*',
+        'Accept-Language': 'en-US,en;q=0.9'
+    }
+    
+    timeout = aiohttp.ClientTimeout(total=None, connect=30)
+    
+    async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
+        try:
+            async with session.get(url) as response:
+                if response.status not in [200, 206]:
+                    raise HTTPException(status_code=500, detail=f"Failed to fetch X media: HTTP {response.status}")
+                
+                async for chunk in response.content.iter_chunked(chunk_size):
+                    yield chunk
+                    
+        except aiohttp.ClientError as e:
+            logger.error(f"X streaming error: {e}")
+            raise HTTPException(status_code=500, detail=f"Streaming error: {str(e)}")
+
+# ORIGINAL ENDPOINT (KEEP AS-IS)
 @router.get("/api/xurl")
 async def download_x_video(
+    background_tasks: BackgroundTasks,
     url: str = Query(..., description="X/Twitter URL")
 ):
-    """Stream X/Twitter video download"""
+    """Download X/Twitter video - Original endpoint"""
     if not ("x.com" in url or "twitter.com" in url):
         raise HTTPException(status_code=400, detail="Invalid X/Twitter URL")
     
     try:
-        # Get video info
-        title = await get_x_info(url)
+        # Create temp directory
+        temp_dir = Path('temp')
+        temp_dir.mkdir(exist_ok=True)
         
-        return StreamingResponse(
-            stream_x_download(url),
-            media_type="video/mp4",
-            headers={
-                "Content-Disposition": f'attachment; filename="{title}.mp4"',
-                "Cache-Control": "no-cache"
-            }
+        # Generate unique filename
+        filename = f"{uuid.uuid4()}.mp4"
+        output_path = temp_dir / filename
+        
+        ydl_opts = {
+            'outtmpl': str(output_path),
+            'format': 'best',
+            'no_cache_dir': True,
+            'quiet': True,
+        }
+        
+        loop = asyncio.get_event_loop()
+        
+        def download_video():
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                return info
+        
+        info = await loop.run_in_executor(None, download_video)
+        
+        if not output_path.exists():
+            raise HTTPException(status_code=500, detail="Download failed - file not found")
+        
+        title = info.get('title', 'x_video')
+        
+        # Schedule cleanup
+        background_tasks.add_task(cleanup_file, output_path)
+        
+        return FileResponse(
+            path=str(output_path),
+            filename=f"{title}.mp4",
+            media_type="video/mp4"
         )
         
     except Exception as e:
         logger.error(f"X/Twitter download error: {e}")
         raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")
+
+# NEW STREAMING ENDPOINT (FOR WEBSITE)
+@router.get("/stream/xurl")
+async def stream_x_video(
+    url: str = Query(..., description="X/Twitter URL")
+):
+    """Stream X/Twitter video with browser progress"""
+    if not ("x.com" in url or "twitter.com" in url):
+        raise HTTPException(status_code=400, detail="Invalid X/Twitter URL")
+    
+    try:
+        # Get direct URL and info
+        direct_url, title, ext = await get_x_info_and_url(url)
+        
+        return StreamingResponse(
+            stream_from_url(direct_url, chunk_size=2097152),  # 2MB chunks
+            media_type="video/mp4",
+            headers={
+                "Content-Disposition": f'attachment; filename="{title}.mp4"',
+                "Cache-Control": "no-cache",
+                "Accept-Ranges": "bytes"
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"X stream error: {e}")
+        raise HTTPException(status_code=500, detail=f"Stream failed: {str(e)}")
