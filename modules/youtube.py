@@ -309,7 +309,7 @@ async def download_youtube_audio_stream(
             
             try:
                 while True:
-                    chunk = await process.stdout.read(2000000)
+                    chunk = await process.stdout.read(8388608)
                     if not chunk:
                         break
                     yield chunk
@@ -396,7 +396,7 @@ async def download_youtube_video_stream(
 
             try:
                 while True:
-                    chunk = await process.stdout.read(2_000_000)
+                    chunk = await process.stdout.read(8388608)
                     if not chunk:
                         break
                     yield chunk
