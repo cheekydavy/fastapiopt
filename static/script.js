@@ -6,7 +6,6 @@ class MediaDownloader {
   }
 
   initEventListeners() {
-    // Hamburger menu functionality
     const hamburger = document.getElementById("hamburger")
     const navMenu = document.getElementById("nav-menu")
 
@@ -16,7 +15,6 @@ class MediaDownloader {
         navMenu.classList.toggle("active")
       })
 
-      // Close menu when clicking on a link
       document.querySelectorAll(".nav-link").forEach((n) =>
         n.addEventListener("click", () => {
           hamburger.classList.remove("active")
@@ -25,24 +23,16 @@ class MediaDownloader {
       )
     }
 
-    // FAQ toggle functionality
     const faqItems = document.querySelectorAll(".faq-item")
     faqItems.forEach((item) => {
       const question = item.querySelector(".faq-question")
       question.addEventListener("click", () => {
         const isActive = item.classList.contains("active")
-
-        // Close all FAQ items
         faqItems.forEach((faq) => faq.classList.remove("active"))
-
-        // Open clicked item if it wasn't active
-        if (!isActive) {
-          item.classList.add("active")
-        }
+        if (!isActive) item.classList.add("active")
       })
     })
 
-    // Allow Enter key to trigger search
     const youtubeSearch = document.getElementById("youtube-search")
     if (youtubeSearch) {
       youtubeSearch.addEventListener("keypress", (e) => {
@@ -76,17 +66,14 @@ class MediaDownloader {
   }
 
   clearInputs(platform) {
-    // Clear URL input
     const urlInput = document.getElementById(`${platform}-url`)
     if (urlInput) urlInput.value = ""
 
-    // Clear search input for YouTube
     if (platform === "youtube") {
       const searchInput = document.getElementById("youtube-search")
       if (searchInput) searchInput.value = ""
     }
 
-    // Reset selects to default values
     const typeSelect = document.getElementById(`${platform}-type`)
     if (typeSelect) typeSelect.selectedIndex = 0
 
@@ -97,8 +84,6 @@ class MediaDownloader {
   showDownloadStatus(platform) {
     const statusElement = document.getElementById(`${platform}-download-status`)
     const successElement = document.getElementById(`${platform}-success`)
-
-    // Hide success message and show status
     if (successElement) successElement.style.display = "none"
     if (statusElement) statusElement.style.display = "flex"
   }
@@ -106,13 +91,9 @@ class MediaDownloader {
   showDownloadSuccess(platform) {
     const statusElement = document.getElementById(`${platform}-download-status`)
     const successElement = document.getElementById(`${platform}-success`)
-
-    // Hide status and show success
     if (statusElement) statusElement.style.display = "none"
     if (successElement) {
       successElement.style.display = "flex"
-
-      // Hide success message after 5 seconds
       setTimeout(() => {
         successElement.style.display = "none"
       }, 5000)
@@ -123,8 +104,6 @@ class MediaDownloader {
     try {
       const text = await navigator.clipboard.readText()
       document.getElementById(inputId).value = text
-
-      // Show feedback
       const input = document.getElementById(inputId)
       const originalBorder = input.style.borderColor
       input.style.borderColor = "#48bb78"
@@ -133,7 +112,6 @@ class MediaDownloader {
       }, 1000)
     } catch (err) {
       console.log("Clipboard access not available")
-      // Fallback: show a message to manually paste
       this.showError(inputId.split("-")[0], "Please paste the URL manually")
     }
   }
@@ -150,12 +128,10 @@ class MediaDownloader {
     loading.style.display = "flex"
 
     try {
-      // Call Node.js service directly
       const response = await fetch(`${this.YOUTUBE_SEARCH_URL}/api/ytsearch?q=${encodeURIComponent(query)}`)
       const data = await response.json()
       if (data.url) {
         document.getElementById("youtube-url").value = data.url
-        // Clear search field after successful search
         document.getElementById("youtube-search").value = ""
       } else {
         this.showError("youtube", data.error || "Song not found")
@@ -186,7 +162,6 @@ class MediaDownloader {
       throw new Error(errorText || `HTTP ${response.status}`)
     }
 
-    // Get filename from Content-Disposition header or URL
     const contentDisposition = response.headers.get("Content-Disposition")
     let filename = "download"
 
@@ -197,7 +172,6 @@ class MediaDownloader {
       }
     }
 
-    // Create blob and download
     const blob = await response.blob()
     const downloadUrl = window.URL.createObjectURL(blob)
 
@@ -219,7 +193,6 @@ class MediaDownloader {
     if (!url) return this.showError(platform, "Please enter a URL")
     if (!this.validateURL(platform, url)) return this.showError(platform, `Invalid ${platform} URL`)
 
-    // Show loading state on button
     const button = document.querySelector(`.${platform}-btn`)
     const btnText = button.querySelector("span")
     const btnIcon = button.querySelector("i")
@@ -232,26 +205,24 @@ class MediaDownloader {
     button.disabled = true
 
     try {
-      // Use HYBRID approach: streaming for fast platforms, file-based for secure platforms
       const downloadUrl = this.buildHybridDownloadUrl(platform, url)
-
-      // Show "Starting download..." when we hit the API
       this.showDownloadStatus(platform)
 
-      // Use fetch for downloads
-      await this.downloadFile(downloadUrl)
-
-      // Show success and clear inputs
-      this.showDownloadSuccess(platform)
-      this.clearInputs(platform)
+      if (platform === "youtube") {
+        // Use window.location.href for instant download start
+        window.location.href = downloadUrl
+        this.showDownloadSuccess(platform)
+        this.clearInputs(platform)
+      } else {
+        await this.downloadFile(downloadUrl)
+        this.showDownloadSuccess(platform)
+        this.clearInputs(platform)
+      }
     } catch (error) {
       this.showError(platform, `Download failed: ${error.message}`)
-
-      // Hide download status on error
       const statusElement = document.getElementById(`${platform}-download-status`)
       if (statusElement) statusElement.style.display = "none"
     } finally {
-      // Reset button
       btnText.textContent = originalText
       btnIcon.className = originalIcon
       button.disabled = false
@@ -261,37 +232,29 @@ class MediaDownloader {
   buildHybridDownloadUrl(platform, url) {
     const encodedUrl = encodeURIComponent(url)
 
-    // HYBRID APPROACH: Use streaming for platforms that work well, file-based for secure platforms
     switch (platform) {
       case "youtube":
-        // ✅ STREAMING - Use yt-dlp built-in streaming for best performance
         const type = document.getElementById("youtube-type").value
         const quality = document.getElementById("youtube-quality").value
 
         if (type === "audio") {
-  // ✅ Use the streaming audio endpoint
-  return `/download/audio/stream?song=${encodedUrl}&quality=${quality}`
-} else {
-  // ✅ Use the streaming video endpoint you implemented
-  return `/download/video/stream?song=${encodedUrl}&quality=${quality}`
-}
+          return `/download/audio/stream?song=${encodedUrl}&quality=${quality}`
+        } else {
+          return `/download/video/stream?song=${encodedUrl}&quality=${quality}`
+        }
 
       case "x":
-        // ✅ STREAMING - Works well for X/Twitter
         return `/stream/xurl?url=${encodedUrl}`
 
       case "tiktok":
-        // 🔒 FILE-BASED - TikTok has strong security, use reliable original endpoints
         const tiktokType = document.getElementById("tiktok-type").value
         const endpoint = tiktokType === "video" ? "tiktokurl" : "tiktoaudio"
         return `/api/${endpoint}?url=${encodedUrl}`
 
       case "instagram":
-        // 🔒 FILE-BASED - Instagram requires authentication, use original endpoint
         return `/download/iglink?url=${encodedUrl}`
 
       case "facebook":
-        // 🔒 FILE-BASED - Facebook has encoding issues with streaming, use original endpoint
         return `/api/fburl?url=${encodedUrl}`
 
       default:
@@ -299,7 +262,6 @@ class MediaDownloader {
     }
   }
 
-  // Keep original method for backward compatibility
   buildDownloadUrl(platform, url) {
     const encodedUrl = encodeURIComponent(url)
 
@@ -328,7 +290,6 @@ class MediaDownloader {
     }
   }
 
-  // Method to get download method info for debugging
   getDownloadMethod(platform) {
     const methods = {
       youtube: "🚀 yt-dlp Streaming (Ultra-fast with browser progress)",
@@ -341,20 +302,16 @@ class MediaDownloader {
   }
 }
 
-// Initialize the app when DOM is loaded
 document.addEventListener("DOMContentLoaded", () => {
   const downloader = new MediaDownloader()
 
-  // Make functions globally available for onclick handlers
   window.updateYouTubeQuality = () => downloader.updateYouTubeQuality()
   window.pasteFromClipboard = (inputId) => downloader.pasteFromClipboard(inputId)
   window.searchYouTube = () => downloader.searchYouTube()
   window.download = (platform) => downloader.download(platform)
 
-  // Initialize YouTube quality options
   downloader.updateYouTubeQuality()
 
-  // Log download methods for debugging (can be removed in production)
   console.log("🔧 Download Methods:")
   console.log("YouTube:", downloader.getDownloadMethod("youtube"))
   console.log("X/Twitter:", downloader.getDownloadMethod("x"))
