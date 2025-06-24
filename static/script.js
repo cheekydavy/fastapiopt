@@ -269,12 +269,12 @@ class MediaDownloader {
         const quality = document.getElementById("youtube-quality").value
 
         if (type === "audio") {
-          // Use the superior streaming endpoint for audio
-          return `/download/audio/stream?song=${encodedUrl}&quality=${quality}`
-        } else {
-          // Use direct streaming for video
-          return `/download/${type}?song=${encodedUrl}&quality=${quality}`
-        }
+  // ✅ Use the streaming audio endpoint
+  return `/download/audio/stream?song=${encodedUrl}&quality=${quality}`
+} else {
+  // ✅ Use the streaming video endpoint you implemented
+  return `/download/video/stream?song=${encodedUrl}&quality=${quality}`
+}
 
       case "x":
         // ✅ STREAMING - Works well for X/Twitter
