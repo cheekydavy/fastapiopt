@@ -339,3 +339,90 @@ async def download_youtube_audio_stream(
     except Exception as e:
         logger.error(f"YouTube audio stream error: {e}")
         raise HTTPException(status_code=500, detail=f"Streaming failed: {str(e)}")
+# for streaming videos
+@router.get("/download/video/stream")
+async def download_youtube_video_stream(
+    song: str = Query(..., description="YouTube URL"),
+    quality: Optional[str] = Query("720p", description="Video quality")
+):
+    if not song or not is_valid_youtube_url(song):
+        raise HTTPException(status_code=400, detail="Invalid YouTube URL")
+
+    cookies_file = get_cookies_file()
+    cookies_option = f'--cookies "{cookies_file}"' if cookies_file else ""
+
+    try:
+        # Get video title
+        title_cmd = f'yt-dlp --get-title {cookies_option} "{song}"'
+        process = await asyncio.create_subprocess_shell(
+            title_cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, _ = await process.communicate()
+        title = stdout.decode().strip() if stdout else "video"
+        clean_title = re.sub(r'[^a-zA-Z0-9]', '_', title)
+
+        # Quality mapping
+        quality_formats = {
+            '144p': 'bestvideo[height<=144]+bestaudio/best[height<=144]',
+            '240p': 'bestvideo[height<=240]+bestaudio/best[height<=240]',
+            '360p': 'bestvideo[height<=360]+bestaudio/best[height<=360]',
+            '480p': 'bestvideo[height<=480]+bestaudio/best[height<=480]',
+            '720p': 'bestvideo[height<=720]+bestaudio/best[height<=720]',
+            '1080p': 'bestvideo[height<=1080]+bestaudio/best[height<=1080]'
+        }
+
+        format_selector = quality_formats.get(quality, 'bestvideo[height<=720]+bestaudio/best')
+
+        # yt-dlp stream generator
+        async def stream_video():
+            cmd = [
+                "yt-dlp",
+                "--quiet",
+                "--no-warnings",
+                "-f", format_selector,
+                "-o", "-",  # Output to stdout
+                song
+            ]
+            if cookies_file:
+                cmd.extend(["--cookies", str(cookies_file)])
+
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+
+            try:
+                while True:
+                    chunk = await process.stdout.read(2_000_000)
+                    if not chunk:
+                        break
+                    yield chunk
+
+                await process.wait()
+
+                if process.returncode != 0:
+                    stderr_output = await process.stderr.read()
+                    logger.error(f"yt-dlp video streaming error: {stderr_output.decode()}")
+
+            except Exception as e:
+                logger.error(f"Video stream error: {e}")
+                if process.returncode is None:
+                    process.terminate()
+                    await process.wait()
+                raise
+
+        return StreamingResponse(
+            stream_video(),
+            media_type="video/mp4",
+            headers={
+                "Content-Disposition": f'attachment; filename="{clean_title}_{quality}.mp4"',
+                "Cache-Control": "no-cache"
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"YouTube video stream error: {e}")
+        raise HTTPException(status_code=500, detail=f"Video streaming failed: {str(e)}")
