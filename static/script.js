@@ -47,7 +47,7 @@ class MediaDownloader {
     const type = document.getElementById("youtube-type").value
     const qualitySelect = document.getElementById("youtube-quality")
     qualitySelect.innerHTML = ""
-    const options = type === "video" ? ["1080p", "720p", "480p", "360p"] : ["128K", "192K", "320K"]
+    const options = type === "video" ? ["360p", "480p", "720p", "1080p"] : ["128K", "192K", "320K"]
     options.forEach((opt) => {
       const option = document.createElement("option")
       option.value = opt
@@ -292,8 +292,8 @@ class MediaDownloader {
 
   getDownloadMethod(platform) {
     const methods = {
-      youtube: "🚀 yt-dlp Streaming (Ultra-fast with browser progress)",
-      x: "🚀 Streaming (Fast with browser progress)",
+      youtube: "🚀 Fast (Ultra-fast with browser progress)",
+      x: "🚀 Fast (Fast with browser progress)",
       tiktok: "📁 File-based (Reliable for secure platform)",
       instagram: "📁 File-based (Reliable for secure platform)",
       facebook: "📁 File-based (Reliable for secure platform)",
