@@ -1,5 +1,5 @@
 {
-  "name": "ytdownloader",
+  "name": "fastapi",
   "buildpacks": [
     {
       "url": "https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest"
