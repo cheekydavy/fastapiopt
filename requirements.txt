@@ -1,6 +1,6 @@
 fastapi
 uvicorn[standard]
-yt-dlp==2025.06.30
+yt-dlp==2025.8.11
 requests
 aiofiles
 python-multipart
