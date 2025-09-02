@@ -1,7 +1,7 @@
 class MediaDownloader {
   constructor() {
     // YouTube search service URL (deployed on Fly.io)
-    this.YOUTUBE_SEARCH_URL = "https://ytsdls-0a7592ed723b.herokuapp.com"
+    this.YOUTUBE_SEARCH_URL = "https://ytsfastapi-bc7d5db91344.herokuapp.com"
     this.initEventListeners()
   }
 
