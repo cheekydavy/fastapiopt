@@ -8,12 +8,17 @@ from pathlib import Path
 from typing import AsyncGenerator
 import json
 import aiohttp
+import os
 
 router = APIRouter()
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+APIFY_TOKEN = os.environ.get('APIFY_TOKEN')
+APIFY_ACTOR_ID = 'apify/instagram-scraper'
+APIFY_BASE_URL = 'https://api.apify.com/v2'
 
 def cleanup_file(file_path: Path):
     """Background task to cleanup temporary files"""
@@ -23,6 +28,76 @@ def cleanup_file(file_path: Path):
             logger.info(f"Cleaned up temp file: {file_path}")
     except Exception as e:
         logger.error(f"Failed to cleanup {file_path}: {e}")
+
+async def run_apify_instagram_scraper(url: str) -> dict:
+    """Run Apify Instagram Scraper and get media info"""
+    if not APIFY_TOKEN:
+        raise ValueError("APIFY_TOKEN environment variable not set")
+    
+    headers = {
+        'Authorization': f'Bearer {APIFY_TOKEN}',
+        'Content-Type': 'application/json'
+    }
+    
+    # Input for Apify: scrape single URL
+    input_data = {
+        "directUrls": [url],
+        "resultsLimit": 1,
+        "downloadVideos": True,
+        "downloadImages": True
+    }
+    
+    async with aiohttp.ClientSession() as session:
+        # Start the run
+        async with session.post(
+            f"{APIFY_BASE_URL}/acts/{APIFY_ACTOR_ID}/runs?token={APIFY_TOKEN}",
+            headers=headers,
+            json=input_data
+        ) as response:
+            if response.status != 201:
+                raise HTTPException(status_code=500, detail=f"Apify run failed: {await response.text()}")
+            
+            run_data = await response.json()
+            run_id = run_data['data']['id']
+            logger.info(f"Started Apify run {run_id}")
+        
+        # Poll for completion (max 120s)
+        start_time = asyncio.get_event_loop().time()
+        while True:
+            if asyncio.get_event_loop().time() - start_time > 120:
+                raise HTTPException(status_code=500, detail="Apify run timeout")
+            
+            async with session.get(
+                f"{APIFY_BASE_URL}/runs/{run_id}?token={APIFY_TOKEN}"
+            ) as response:
+                if response.status != 200:
+                    raise HTTPException(status_code=500, detail=f"Apify status check failed: {await response.text()}")
+                
+                status_data = await response.json()
+                status = status_data['data']['status']
+                
+                if status == 'SUCCEEDED':
+                    dataset_id = status_data['data']['defaultDatasetId']
+                    break
+                elif status in ['FAILED', 'ABORTED']:
+                    raise HTTPException(status_code=500, detail=f"Apify run {status.lower()}: {status_data}")
+                
+                await asyncio.sleep(5)  # Poll every 5s
+        
+        # Fetch dataset items
+        async with session.get(
+            f"{APIFY_BASE_URL}/datasets/{dataset_id}/items?format=json&clean=true&token={APIFY_TOKEN}"
+        ) as response:
+            if response.status != 200:
+                raise HTTPException(status_code=500, detail=f"Apify dataset fetch failed: {await response.text()}")
+            
+            items = await response.json()
+            if not items:
+                raise HTTPException(status_code=500, detail="No data from Apify scraper")
+            
+            first_item = items[0]
+            logger.info(f"Apify scraped: {first_item.get('displayUrl', 'No URL')[:100]}...")
+            return first_item
 
 async def get_instagram_info_and_url(url: str) -> tuple[str, str, str]:
     """Get Instagram info and direct URL using JSON output"""
@@ -97,22 +172,62 @@ async def stream_from_url(url: str, chunk_size: int = 2097152) -> AsyncGenerator
             logger.error(f"Instagram streaming error: {e}")
             raise HTTPException(status_code=500, detail=f"Streaming error: {str(e)}")
 
-# ORIGINAL ENDPOINT (KEEP AS-IS)
+# ORIGINAL ENDPOINT (MODIFIED WITH APIFY PRIMARY)
 @router.get("/download/iglink")
 async def download_instagram_media(
     background_tasks: BackgroundTasks,
     url: str = Query(..., description="Instagram URL")
 ):
-    """Download Instagram media (video/image) - Original endpoint"""
+    """Download Instagram media (video/image) - Apify primary, yt-dlp fallback"""
     if not (url.startswith('https://www.instagram.com/') or url.startswith('https://instagr.am/')):
         raise HTTPException(status_code=400, detail="Invalid Instagram URL")
     
     try:
-        # Create temp directory
+        # Primary: Try Apify
+        try:
+            apify_data = await run_apify_instagram_scraper(url)
+            # Download from Apify-provided URL to temp
+            direct_url = apify_data.get('videoUrl') or apify_data.get('imageUrl') or apify_data.get('displayUrl')
+            if not direct_url:
+                raise ValueError("No media URL in Apify data")
+            
+            title = apify_data.get('title', 'instagram_media')
+            ext = 'mp4' if 'videoUrl' in apify_data else 'jpg'
+            
+            # Create temp directory and file
+            temp_dir = Path('temp')
+            temp_dir.mkdir(exist_ok=True)
+            temp_file = temp_dir / f"{uuid.uuid4()}.{ext}"
+            
+            # Download the file
+            async with aiohttp.ClientSession() as session:
+                async with session.get(direct_url) as resp:
+                    if resp.status != 200:
+                        raise HTTPException(status_code=500, detail=f"Apify media download failed: HTTP {resp.status}")
+                    content = await resp.read()
+                    with open(temp_file, 'wb') as f:
+                        f.write(content)
+            
+            if not temp_file.exists():
+                raise HTTPException(status_code=500, detail="Apify download failed - file not found")
+            
+            media_type = 'video/mp4' if ext == 'mp4' else 'image/jpeg'
+            
+            # Schedule cleanup
+            background_tasks.add_task(cleanup_file, temp_file)
+            
+            return FileResponse(
+                path=str(temp_file),
+                filename=f"{title}.{ext}",
+                media_type=media_type
+            )
+        except Exception as apify_err:
+            logger.warning(f"Apify failed: {apify_err}. Falling back to yt-dlp.")
+        
+        # Fallback: Original yt-dlp logic
         temp_dir = Path('temp')
         temp_dir.mkdir(exist_ok=True)
         
-        # Generate unique filename
         filename = f"{uuid.uuid4()}.%(ext)s"
         output_template = str(temp_dir / filename)
         
@@ -138,12 +253,10 @@ async def download_instagram_media(
         if not output_path.exists():
             raise HTTPException(status_code=500, detail="Download failed - file not found")
         
-        # Determine media type and filename
         title = info.get('title', 'instagram_media')
         ext = output_path.suffix or '.mp4'
         media_type = 'video/mp4' if ext in ['.mp4', '.mov'] else 'image/jpeg'
         
-        # Schedule cleanup
         background_tasks.add_task(cleanup_file, output_path)
         
         return FileResponse(
@@ -156,24 +269,45 @@ async def download_instagram_media(
         logger.error(f"Instagram download error: {e}")
         raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")
 
-# NEW STREAMING ENDPOINT (FOR WEBSITE)
+# NEW STREAMING ENDPOINT (MODIFIED WITH APIFY PRIMARY)
 @router.get("/stream/iglink")
 async def stream_instagram_media(
     url: str = Query(..., description="Instagram URL")
 ):
-    """Stream Instagram media with browser progress"""
+    """Stream Instagram media with browser progress - Apify primary, yt-dlp fallback"""
     if not (url.startswith('https://www.instagram.com/') or url.startswith('https://instagr.am/')):
         raise HTTPException(status_code=400, detail="Invalid Instagram URL")
     
     try:
-        # Get direct URL and info
-        direct_url, title, ext = await get_instagram_info_and_url(url)
+        # Primary: Try Apify
+        try:
+            apify_data = await run_apify_instagram_scraper(url)
+            direct_url = apify_data.get('videoUrl') or apify_data.get('imageUrl') or apify_data.get('displayUrl')
+            if not direct_url:
+                raise ValueError("No media URL in Apify data")
+            
+            title = apify_data.get('title', 'instagram_media')
+            ext = 'mp4' if 'videoUrl' in apify_data else 'jpg'
+            media_type = 'video/mp4' if ext == 'mp4' else 'image/jpeg'
+            
+            return StreamingResponse(
+                stream_from_url(direct_url, chunk_size=2097152),
+                media_type=media_type,
+                headers={
+                    "Content-Disposition": f'attachment; filename="{title}.{ext}"',
+                    "Cache-Control": "no-cache",
+                    "Accept-Ranges": "bytes"
+                }
+            )
+        except Exception as apify_err:
+            logger.warning(f"Apify failed: {apify_err}. Falling back to yt-dlp.")
         
-        # Determine media type
+        # Fallback: Original yt-dlp streaming
+        direct_url, title, ext = await get_instagram_info_and_url(url)
         media_type = 'video/mp4' if ext in ['mp4', 'mov'] else 'image/jpeg'
         
         return StreamingResponse(
-            stream_from_url(direct_url, chunk_size=2097152),  # 2MB chunks
+            stream_from_url(direct_url, chunk_size=2097152),
             media_type=media_type,
             headers={
                 "Content-Disposition": f'attachment; filename="{title}.{ext}"',
