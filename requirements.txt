@@ -8,4 +8,4 @@ uvloop
 fastapi[standard]
 aiohttp
 ffmpeg-python
-apify-client==1.5.1
+apify-client==2.2.0
