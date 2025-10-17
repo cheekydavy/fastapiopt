@@ -9,6 +9,7 @@ from typing import AsyncGenerator
 import json
 import aiohttp
 import os
+from apify_client import ApifyClient
 
 router = APIRouter()
 
@@ -16,9 +17,9 @@ router = APIRouter()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-APIFY_TOKEN = os.environ.get('APIFY_TOKEN')
-APIFY_ACTOR_ID = 'apify/instagram-scraper'
-APIFY_BASE_URL = 'https://api.apify.com/v2'
+# Initialize Apify client with your API token (set via environment variable for security)
+APIFY_API_TOKEN = os.environ.get('APIFY_API_TOKEN', '<YOUR_API_TOKEN>')
+client = ApifyClient(APIFY_API_TOKEN)
 
 def cleanup_file(file_path: Path):
     """Background task to cleanup temporary files"""
@@ -30,74 +31,43 @@ def cleanup_file(file_path: Path):
         logger.error(f"Failed to cleanup {file_path}: {e}")
 
 async def run_apify_instagram_scraper(url: str) -> dict:
-    """Run Apify Instagram Scraper and get media info"""
-    if not APIFY_TOKEN:
-        raise ValueError("APIFY_TOKEN environment variable not set")
+    """Run Apify Instagram Scraper and get media info using apify_client"""
+    if not APIFY_API_TOKEN:
+        raise ValueError("APIFY_API_TOKEN environment variable not set")
     
-    headers = {
-        'Authorization': f'Bearer {APIFY_TOKEN}',
-        'Content-Type': 'application/json'
-    }
-    
-    # Input for Apify: scrape single URL
-    input_data = {
-        "directUrls": [url],
-        "resultsLimit": 1,
-        "downloadVideos": True,
-        "downloadImages": True
-    }
-    
-    async with aiohttp.ClientSession() as session:
-        # Start the run
-        async with session.post(
-            f"{APIFY_BASE_URL}/acts/{APIFY_ACTOR_ID}/runs?token={APIFY_TOKEN}",
-            headers=headers,
-            json=input_data
-        ) as response:
-            if response.status != 201:
-                raise HTTPException(status_code=500, detail=f"Apify run failed: {await response.text()}")
-            
-            run_data = await response.json()
-            run_id = run_data['data']['id']
-            logger.info(f"Started Apify run {run_id}")
+    try:
+        run_input = {
+            "directUrls": [url],
+            "resultsType": "posts",
+            "resultsLimit": 1,
+            "searchType": "hashtag",
+            "searchLimit": 1,
+            "addParentData": False,
+        }
         
-        # Poll for completion (max 120s)
-        start_time = asyncio.get_event_loop().time()
-        while True:
-            if asyncio.get_event_loop().time() - start_time > 120:
-                raise HTTPException(status_code=500, detail="Apify run timeout")
-            
-            async with session.get(
-                f"{APIFY_BASE_URL}/runs/{run_id}?token={APIFY_TOKEN}"
-            ) as response:
-                if response.status != 200:
-                    raise HTTPException(status_code=500, detail=f"Apify status check failed: {await response.text()}")
-                
-                status_data = await response.json()
-                status = status_data['data']['status']
-                
-                if status == 'SUCCEEDED':
-                    dataset_id = status_data['data']['defaultDatasetId']
-                    break
-                elif status in ['FAILED', 'ABORTED']:
-                    raise HTTPException(status_code=500, detail=f"Apify run {status.lower()}: {status_data}")
-                
-                await asyncio.sleep(5)  # Poll every 5s
+        # Run the Actor and wait for it to finish (sync, wrapped in executor for async)
+        loop = asyncio.get_event_loop()
+        run = await loop.run_in_executor(
+            None,
+            lambda: client.actor("shu8hvrXbJbY3Eb9W").call(run_input=run_input)
+        )
+        dataset_id = run["defaultDatasetId"]
         
-        # Fetch dataset items
-        async with session.get(
-            f"{APIFY_BASE_URL}/datasets/{dataset_id}/items?format=json&clean=true&token={APIFY_TOKEN}"
-        ) as response:
-            if response.status != 200:
-                raise HTTPException(status_code=500, detail=f"Apify dataset fetch failed: {await response.text()}")
-            
-            items = await response.json()
-            if not items:
-                raise HTTPException(status_code=500, detail="No data from Apify scraper")
-            
-            first_item = items[0]
-            logger.info(f"Apify scraped: {first_item.get('displayUrl', 'No URL')[:100]}...")
-            return first_item
+        # Fetch results from the run's dataset (sync, wrapped)
+        items = await loop.run_in_executor(
+            None,
+            lambda: list(client.dataset(dataset_id).iterate_items())
+        )
+        
+        if not items:
+            raise ValueError("No data from Apify scraper")
+        
+        first_item = items[0]
+        logger.info(f"Apify scraped: {first_item.get('displayUrl', 'No URL')[:100]}...")
+        return first_item
+    except Exception as e:
+        logger.error(f"Apify failed: {str(e)}")
+        raise
 
 async def get_instagram_info_and_url(url: str) -> tuple[str, str, str]:
     """Get Instagram info and direct URL using JSON output"""
