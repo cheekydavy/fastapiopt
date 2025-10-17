@@ -18,8 +18,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize Apify client with your API token (set via environment variable for security)
-APIFY_API_TOKEN = os.environ.get('APIFY_API_TOKEN', '<YOUR_API_TOKEN>')
-client = ApifyClient(APIFY_API_TOKEN)
+APIFY_TOKEN = os.environ.get('APIFY_TOKEN', '<YOUR_API_TOKEN>')
+client = ApifyClient(APIFY_TOKEN)
 
 def cleanup_file(file_path: Path):
     """Background task to cleanup temporary files"""
@@ -31,9 +31,9 @@ def cleanup_file(file_path: Path):
         logger.error(f"Failed to cleanup {file_path}: {e}")
 
 async def run_apify_instagram_scraper(url: str) -> dict:
-    """Run Apify Instagram Scraper and get media info using apify_client"""
-    if not APIFY_API_TOKEN:
-        raise ValueError("APIFY_API_TOKEN environment variable not set")
+    """Run Apify Instagram Scraper and get media info"""
+    if not APIFY_TOKEN:
+        raise ValueError("APIFY_TOKEN environment variable not set")
     
     try:
         run_input = {
@@ -51,9 +51,9 @@ async def run_apify_instagram_scraper(url: str) -> dict:
             None,
             lambda: client.actor("shu8hvrXbJbY3Eb9W").call(run_input=run_input)
         )
-        dataset_id = run["defaultDatasetId"]
         
         # Fetch results from the run's dataset (sync, wrapped)
+        dataset_id = run["defaultDatasetId"]
         items = await loop.run_in_executor(
             None,
             lambda: list(client.dataset(dataset_id).iterate_items())
