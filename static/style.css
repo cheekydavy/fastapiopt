@@ -54,19 +54,20 @@ body::after {
   }
 }
 
+/* FIX #18: radial-gradient ignores rotate() — use opacity/position shifts instead */
 @keyframes gradientShift {
   0%,
   100% {
     opacity: 1;
-    transform: scale(1) rotate(0deg);
+    background-position: 20% 80%, 80% 20%, 40% 40%;
   }
   33% {
-    opacity: 0.8;
-    transform: scale(1.1) rotate(120deg);
+    opacity: 0.85;
+    background-position: 30% 70%, 70% 30%, 50% 50%;
   }
   66% {
-    opacity: 0.6;
-    transform: scale(0.9) rotate(240deg);
+    opacity: 0.7;
+    background-position: 10% 90%, 90% 10%, 30% 30%;
   }
 }
 
@@ -384,8 +385,9 @@ header p {
   left: 100%;
 }
 
+/* FIX #13: Removed scale(1.02) to prevent jank when input inside card is focused */
 .card:hover {
-  transform: translateY(-8px) scale(1.02);
+  transform: translateY(-5px);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(102, 126, 234, 0.3);
 }
 
@@ -585,6 +587,90 @@ button::before {
 button:hover:not(:disabled)::before {
   width: 300px;
   height: 300px;
+}
+
+/* FIX #15: Platform color left-border for quick visual scan on mobile */
+.card[data-platform="youtube"] { border-left: 4px solid #ff0000; }
+.card[data-platform="tiktok"]  { border-left: 4px solid #000000; }
+.card[data-platform="instagram"] { border-left: 4px solid #e1306c; }
+.card[data-platform="facebook"] { border-left: 4px solid #1877f2; }
+.card[data-platform="x"]       { border-left: 4px solid #1da1f2; }
+
+/* FIX #17: Toast notification system */
+#toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 360px;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: white;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  backdrop-filter: blur(10px);
+  opacity: 0;
+  transform: translateX(60px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  pointer-events: auto;
+}
+
+.toast.toast-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.toast-error {
+  background: rgba(231, 76, 60, 0.92);
+  border-left: 4px solid #c0392b;
+}
+
+.toast-success {
+  background: rgba(39, 174, 96, 0.92);
+  border-left: 4px solid #1e8449;
+}
+
+.toast i:first-child {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.toast span {
+  flex: 1;
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 0;
+  width: auto;
+  margin: 0;
+  opacity: 0.8;
+  font-size: 0.85rem;
+  transition: opacity 0.2s;
+}
+
+.toast-close:hover { opacity: 1; }
+
+@media (max-width: 480px) {
+  #toast-container {
+    bottom: 1rem;
+    right: 0.5rem;
+    left: 0.5rem;
+    max-width: none;
+  }
 }
 
 /* Platform-specific button colors */

@@ -72,7 +72,7 @@
       <section id="downloaders">
         <div class="grid">
           <!-- YouTube -->
-          <div class="card">
+          <div class="card" data-platform="youtube">
             <div class="card-header">
               <i class="fab fa-youtube" style="color: #ff0000"></i>
               <h2>YouTube Downloader</h2>
@@ -132,13 +132,13 @@
           </div>
 
           <!-- TikTok -->
-          <div class="card">
+          <div class="card" data-platform="tiktok">
             <div class="card-header">
               <i class="fab fa-tiktok" style="color: #000000"></i>
               <h2>TikTok Downloader</h2>
-              <span class="download-method file-based">📁 Secure</span>
+              <span class="download-method file-based">⚡ Fast API</span>
             </div>
-            <p>Download TikTok videos or audio tracks. Reliable downloads from secure platform.</p>
+            <p>Download TikTok videos or audio tracks. Powered by tikwm for reliable, fast downloads.</p>
             <div class="input-group">
               <input type="url" id="tiktok-url" placeholder="Paste TikTok URL" />
               <button class="paste-btn" onclick="pasteFromClipboard('tiktok-url')">
@@ -168,7 +168,7 @@
           </div>
 
           <!-- Instagram -->
-          <div class="card">
+          <div class="card" data-platform="instagram">
             <div class="card-header">
               <i class="fab fa-instagram" style="color: #e1306c"></i>
               <h2>Instagram Downloader</h2>
@@ -204,7 +204,7 @@
           </div>
 
           <!-- Facebook -->
-          <div class="card">
+          <div class="card" data-platform="facebook">
             <div class="card-header">
               <i class="fab fa-facebook" style="color: #1877f2"></i>
               <h2>Facebook Downloader</h2>
@@ -240,7 +240,7 @@
           </div>
 
           <!-- X (Twitter) -->
-          <div class="card">
+          <div class="card" data-platform="x">
             <div class="card-header">
               <i class="fab fa-x-twitter" style="color: #000000"></i>
               <h2>X (Twitter) Downloader</h2>
@@ -509,7 +509,7 @@
       
       <div class="footer-bottom">
         <div class="footer-bottom-content">
-          <p>&copy; 2025 Mbuvi Tech. All rights reserved.</p>
+          <p id="footer-copyright">&copy; 2026 Mbuvi Tech. All rights reserved.</p>
           <div class="footer-links">
             <a href="https://sessions.mbuvitech.site" target="_blank">WhatsApp Bot</a>
             <span>•</span>

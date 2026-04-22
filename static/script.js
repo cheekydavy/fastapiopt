@@ -1,7 +1,10 @@
 class MediaDownloader {
   constructor() {
     // YouTube search service URL (deployed on Fly.io)
-    this.YOUTUBE_SEARCH_URL = "https://ytsfastapi-bc7d5db91344.herokuapp.com"
+    this.YOUTUBE_SEARCH_URL = "https://p01--yts--wv25f6hgmh8b.code.run"
+    // Cycling status messages for long downloads
+    this.statusMessages = ["Fetching media...", "Downloading...", "Almost there...", "Finalizing..."]
+    this.statusTimers = {}
     this.initEventListeners()
   }
 
@@ -33,13 +36,32 @@ class MediaDownloader {
       })
     })
 
+    // FIX #5: Enter key on YouTube search (already existed) + all URL inputs
     const youtubeSearch = document.getElementById("youtube-search")
     if (youtubeSearch) {
       youtubeSearch.addEventListener("keypress", (e) => {
-        if (e.key === "Enter") {
-          this.searchYouTube()
-        }
+        if (e.key === "Enter") this.searchYouTube()
       })
+    }
+
+    // FIX #5: Enter key on all URL paste inputs
+    const urlInputs = ["youtube-url", "tiktok-url", "instagram-url", "facebook-url", "x-url"]
+    urlInputs.forEach((id) => {
+      const el = document.getElementById(id)
+      if (el) {
+        el.addEventListener("keypress", (e) => {
+          if (e.key === "Enter") {
+            const platform = id.replace("-url", "")
+            this.download(platform)
+          }
+        })
+      }
+    })
+
+    // FIX #7: Dynamic copyright year
+    const copyrightEl = document.getElementById("footer-copyright")
+    if (copyrightEl) {
+      copyrightEl.textContent = `© ${new Date().getFullYear()} Mbuvi Tech. All rights reserved.`
     }
   }
 
@@ -56,13 +78,43 @@ class MediaDownloader {
     })
   }
 
-  showError(platform, message) {
-    const errorElement = document.getElementById(`${platform}-error`)
-    errorElement.textContent = message
-    errorElement.style.display = "block"
+  // FIX #17: Toast notification system — replaces per-card error/success divs
+  showToast(message, type = "error") {
+    let container = document.getElementById("toast-container")
+    if (!container) {
+      container = document.createElement("div")
+      container.id = "toast-container"
+      document.body.appendChild(container)
+    }
+
+    const toast = document.createElement("div")
+    toast.className = `toast toast-${type}`
+    toast.innerHTML = `
+      <i class="fas ${type === "success" ? "fa-check-circle" : "fa-exclamation-circle"}"></i>
+      <span>${message}</span>
+      <button class="toast-close" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+    `
+    container.appendChild(toast)
+
+    // Animate in
+    requestAnimationFrame(() => toast.classList.add("toast-visible"))
+
+    // Auto-remove after 5s
     setTimeout(() => {
-      errorElement.style.display = "none"
+      toast.classList.remove("toast-visible")
+      setTimeout(() => toast.remove(), 400)
     }, 5000)
+  }
+
+  showError(platform, message) {
+    // Keep inline error for accessibility, but also show toast
+    const errorElement = document.getElementById(`${platform}-error`)
+    if (errorElement) {
+      errorElement.textContent = message
+      errorElement.style.display = "block"
+      setTimeout(() => { errorElement.style.display = "none" }, 5000)
+    }
+    this.showToast(message, "error")
   }
 
   clearInputs(platform) {
@@ -81,23 +133,51 @@ class MediaDownloader {
     if (qualitySelect) qualitySelect.selectedIndex = 0
   }
 
+  // FIX #6: Cycling status messages
+  startStatusCycle(platform) {
+    const statusElement = document.getElementById(`${platform}-download-status`)
+    if (!statusElement) return
+    const textSpan = statusElement.querySelector("span")
+    if (!textSpan) return
+
+    let idx = 0
+    textSpan.textContent = this.statusMessages[0]
+
+    this.statusTimers[platform] = setInterval(() => {
+      idx = (idx + 1) % this.statusMessages.length
+      textSpan.textContent = this.statusMessages[idx]
+    }, 6000)
+  }
+
+  stopStatusCycle(platform) {
+    if (this.statusTimers[platform]) {
+      clearInterval(this.statusTimers[platform])
+      delete this.statusTimers[platform]
+    }
+  }
+
   showDownloadStatus(platform) {
     const statusElement = document.getElementById(`${platform}-download-status`)
     const successElement = document.getElementById(`${platform}-success`)
     if (successElement) successElement.style.display = "none"
-    if (statusElement) statusElement.style.display = "flex"
+    if (statusElement) {
+      statusElement.style.display = "flex"
+      // FIX #16: Scroll status into view on mobile
+      statusElement.scrollIntoView({ behavior: "smooth", block: "nearest" })
+    }
+    this.startStatusCycle(platform)
   }
 
   showDownloadSuccess(platform) {
+    this.stopStatusCycle(platform)
     const statusElement = document.getElementById(`${platform}-download-status`)
     const successElement = document.getElementById(`${platform}-success`)
     if (statusElement) statusElement.style.display = "none"
     if (successElement) {
       successElement.style.display = "flex"
-      setTimeout(() => {
-        successElement.style.display = "none"
-      }, 5000)
+      setTimeout(() => { successElement.style.display = "none" }, 5000)
     }
+    this.showToast("Downloaded successfully! 🎉", "success")
   }
 
   async pasteFromClipboard(inputId) {
@@ -107,12 +187,11 @@ class MediaDownloader {
       const input = document.getElementById(inputId)
       const originalBorder = input.style.borderColor
       input.style.borderColor = "#48bb78"
-      setTimeout(() => {
-        input.style.borderColor = originalBorder
-      }, 1000)
+      setTimeout(() => { input.style.borderColor = originalBorder }, 1000)
     } catch (err) {
       console.log("Clipboard access not available")
-      this.showError(inputId.split("-")[0], "Please paste the URL manually")
+      const platform = inputId.split("-")[0]
+      this.showError(platform, "Please paste the URL manually")
     }
   }
 
@@ -146,7 +225,8 @@ class MediaDownloader {
   validateURL(platform, url) {
     const patterns = {
       youtube: /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/.+/,
-      tiktok: /^https?:\/\/(www\.)?(tiktok\.com|vm\.tiktok\.com)\/.+/,
+      // FIX #3: Added vt.tiktok.com to the TikTok pattern
+      tiktok: /^https?:\/\/(www\.)?(tiktok\.com|vm\.tiktok\.com|vt\.tiktok\.com)\/.+/,
       instagram: /^https?:\/\/(www\.)?instagram\.com\/.+/,
       facebook: /^https?:\/\/(www\.)?facebook\.com\/.+/,
       x: /^https?:\/\/(www\.)?(twitter\.com|x\.com)\/.+/,
@@ -154,12 +234,23 @@ class MediaDownloader {
     return patterns[platform].test(url)
   }
 
+  // FIX #4: Parse JSON error body from server responses
   async downloadFile(url) {
     const response = await fetch(url)
 
     if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(errorText || `HTTP ${response.status}`)
+      let errorMsg = `HTTP ${response.status}`
+      try {
+        const contentType = response.headers.get("Content-Type") || ""
+        if (contentType.includes("application/json")) {
+          const errJson = await response.json()
+          errorMsg = errJson.detail || errJson.error || errJson.message || errorMsg
+        } else {
+          const errText = await response.text()
+          errorMsg = errText || errorMsg
+        }
+      } catch (_) { /* ignore parse errors */ }
+      throw new Error(errorMsg)
     }
 
     const contentDisposition = response.headers.get("Content-Disposition")
@@ -208,20 +299,15 @@ class MediaDownloader {
       const downloadUrl = this.buildHybridDownloadUrl(platform, url)
       this.showDownloadStatus(platform)
 
-      if (platform === "youtube") {
-        // Use window.location.href for instant download start
-        window.location.href = downloadUrl
-        this.showDownloadSuccess(platform)
-        this.clearInputs(platform)
-      } else {
-        await this.downloadFile(downloadUrl)
-        this.showDownloadSuccess(platform)
-        this.clearInputs(platform)
-      }
+      // FIX #1: YouTube now uses the same fetch-based downloadFile() approach
+      await this.downloadFile(downloadUrl)
+      this.showDownloadSuccess(platform)
+      this.clearInputs(platform)
     } catch (error) {
-      this.showError(platform, `Download failed: ${error.message}`)
+      this.stopStatusCycle(platform)
       const statusElement = document.getElementById(`${platform}-download-status`)
       if (statusElement) statusElement.style.display = "none"
+      this.showError(platform, `Download failed: ${error.message}`)
     } finally {
       btnText.textContent = originalText
       btnIcon.className = originalIcon
@@ -233,24 +319,23 @@ class MediaDownloader {
     const encodedUrl = encodeURIComponent(url)
 
     switch (platform) {
-      case "youtube":
+      case "youtube": {
         const type = document.getElementById("youtube-type").value
         const quality = document.getElementById("youtube-quality").value
-
         if (type === "audio") {
           return `/download/audio/stream?song=${encodedUrl}&quality=${quality}`
         } else {
           return `/download/video/stream?song=${encodedUrl}&quality=${quality}`
         }
-
+      }
       case "x":
         return `/stream/xurl?url=${encodedUrl}`
 
-      case "tiktok":
+      case "tiktok": {
         const tiktokType = document.getElementById("tiktok-type").value
         const endpoint = tiktokType === "video" ? "tiktokurl" : "tiktoaudio"
         return `/api/${endpoint}?url=${encodedUrl}`
-
+      }
       case "instagram":
         return `/download/iglink?url=${encodedUrl}`
 
@@ -262,39 +347,13 @@ class MediaDownloader {
     }
   }
 
-  buildDownloadUrl(platform, url) {
-    const encodedUrl = encodeURIComponent(url)
-
-    switch (platform) {
-      case "youtube":
-        const type = document.getElementById("youtube-type").value
-        const quality = document.getElementById("youtube-quality").value
-        return `/download/${type}?song=${encodedUrl}&quality=${quality}`
-
-      case "tiktok":
-        const tiktokType = document.getElementById("tiktok-type").value
-        const endpoint = tiktokType === "video" ? "tiktokurl" : "tiktoaudio"
-        return `/api/${endpoint}?url=${encodedUrl}`
-
-      case "instagram":
-        return `/download/iglink?url=${encodedUrl}`
-
-      case "facebook":
-        return `/api/fburl?url=${encodedUrl}`
-
-      case "x":
-        return `/api/xurl?url=${encodedUrl}`
-
-      default:
-        throw new Error("Unsupported platform")
-    }
-  }
+  // FIX #2: buildDownloadUrl() removed (was dead code — replaced by buildHybridDownloadUrl)
 
   getDownloadMethod(platform) {
     const methods = {
-      youtube: "🚀 Fast (Ultra-fast with browser progress)",
-      x: "🚀 Fast (Fast with browser progress)",
-      tiktok: "📁 File-based (Reliable for secure platform)",
+      youtube: "🚀 Fast (fetch-based with browser progress)",
+      x: "🚀 Fast (fetch-based with browser progress)",
+      tiktok: "📁 File-based (Reliable for TikTok)",
       instagram: "📁 File-based (Reliable for secure platform)",
       facebook: "📁 File-based (Reliable for secure platform)",
     }
