@@ -1,6 +1,7 @@
 fastapi
 uvicorn[standard]
 yt-dlp==2026.3.17
+yt-dlp-ejs>=0.4.0
 requests
 aiofiles
 python-multipart
