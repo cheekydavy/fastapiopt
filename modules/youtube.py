@@ -1,10 +1,11 @@
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import StreamingResponse, RedirectResponse
+from fastapi.responses import StreamingResponse, RedirectResponse, FileResponse
 import asyncio
 import os
 import re
 import json
 import logging
+import uuid
 from pathlib import Path
 import time
 from typing import Optional, AsyncGenerator
@@ -14,6 +15,9 @@ router = APIRouter()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+TEMP_DIR = Path("temp")
+TEMP_DIR.mkdir(exist_ok=True)
 
 
 def get_cookies_file() -> Path:
@@ -38,16 +42,14 @@ def is_valid_youtube_url(url: str) -> bool:
 
 
 def sanitize_filename(name: str) -> str:
-    """Keep the real title but strip filesystem-unsafe characters."""
-    # Replace unsafe chars with underscore but preserve spaces, hyphens, dots
+    """Preserve real title, strip only filesystem-unsafe characters."""
     cleaned = re.sub(r'[\\/*?:"<>|]', '_', name).strip()
-    # Collapse multiple underscores/spaces
     cleaned = re.sub(r'_+', '_', cleaned)
     return cleaned or "download"
 
 
 async def get_video_title(url: str, cookies_file: Optional[Path] = None) -> str:
-    """Fetch the real video title from yt-dlp metadata."""
+    """Fetch the real video title via --dump-json."""
     cookies_option = f'--cookies "{cookies_file}"' if cookies_file else ""
     cmd = f'yt-dlp --dump-json --no-playlist {cookies_option} "{url}"'
     try:
@@ -56,14 +58,14 @@ async def get_video_title(url: str, cookies_file: Optional[Path] = None) -> str:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
-        stdout, stderr = await process.communicate()
+        stdout, _ = await process.communicate()
         if stdout.strip():
             info = json.loads(stdout.decode())
             return info.get('title', 'download')
     except Exception as e:
-        logger.warning(f"Could not fetch title via dump-json, falling back to --get-title: {e}")
+        logger.warning(f"dump-json title fetch failed: {e}")
 
-    # Fallback: --get-title is faster but less reliable
+    # Fallback: --get-title
     cmd2 = f'yt-dlp --get-title {cookies_option} "{url}"'
     try:
         process2 = await asyncio.create_subprocess_shell(
@@ -93,7 +95,6 @@ async def get_video_info_and_url(url: str, format_selector: str, cookies_file: O
     stdout, stderr = await process.communicate()
 
     if stderr and "ERROR" in stderr.decode():
-        logger.error(f"yt-dlp error: {stderr.decode()}")
         raise HTTPException(status_code=500, detail=f"Failed to get video info: {stderr.decode()}")
 
     if not stdout.strip():
@@ -101,25 +102,20 @@ async def get_video_info_and_url(url: str, format_selector: str, cookies_file: O
 
     try:
         info = json.loads(stdout.decode())
-        direct_url = info.get('url')
-        if not direct_url:
-            direct_url = info.get('manifest_url') or info.get('fragment_base_url')
+        direct_url = info.get('url') or info.get('manifest_url') or info.get('fragment_base_url')
         if not direct_url or not direct_url.startswith('http'):
             raise HTTPException(status_code=500, detail="No valid direct URL found")
         title = info.get('title', 'download')
         ext = info.get('ext', 'mp4')
-        logger.info(f"Got direct URL: {direct_url[:100]}...")
         return direct_url, title, ext
     except json.JSONDecodeError as e:
-        logger.error(f"JSON decode error: {e}")
         raise HTTPException(status_code=500, detail="Failed to parse video information")
 
 
 async def stream_from_url(url: str, headers: dict = None) -> AsyncGenerator[bytes, None]:
     default_headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': '*/*',
-        'Accept-Language': 'en-US,en;q=0.9',
         'Accept-Encoding': 'identity',
         'Range': 'bytes=0-'
     }
@@ -128,94 +124,160 @@ async def stream_from_url(url: str, headers: dict = None) -> AsyncGenerator[byte
 
     timeout = aiohttp.ClientTimeout(total=None, connect=30)
     async with aiohttp.ClientSession(timeout=timeout, headers=default_headers) as session:
-        try:
-            async with session.get(url) as response:
-                if response.status not in [200, 206]:
-                    logger.error(f"HTTP error {response.status} for URL: {url}")
-                    raise HTTPException(status_code=500, detail=f"Failed to fetch media: HTTP {response.status}")
-                async for chunk in response.content.iter_chunked(8192):
-                    yield chunk
-        except aiohttp.ClientError as e:
-            logger.error(f"Client error streaming from {url}: {e}")
-            raise HTTPException(status_code=500, detail=f"Streaming error: {str(e)}")
+        async with session.get(url) as response:
+            if response.status not in [200, 206]:
+                raise HTTPException(status_code=500, detail=f"Failed to fetch media: HTTP {response.status}")
+            async for chunk in response.content.iter_chunked(8192):
+                yield chunk
 
 
 # ---------------------------------------------------------------------------
-# Audio stream endpoint
-# ---------------------------------------------------------------------------
-# KEY FIX: yt-dlp CANNOT mux two streams (video+audio) when writing to stdout
-# (-o -). Only single pre-merged formats work for pipe/streaming.
-# For audio we request a single bestaudio stream in priority order.
-# For video we use pre-merged mp4 format codes (same strategy as ytdownloader)
-# with a fallback chain so the best available quality is always returned.
+# Format chains
+#
+# KEY INSIGHT from ytdownloader: yt-dlp CANNOT mux video+audio to stdout.
+# For stream endpoints we must download to a temp file (using --merge-output-format
+# so ffmpeg can combine the streams), then serve from disk — exactly how
+# ytdownloader works. We use the same fallback format-code strategy.
+#
+# For /download/audio and /download/video (non-stream), we use pre-merged
+# single-stream direct URLs via aiohttp proxy.
 # ---------------------------------------------------------------------------
 
+# Audio: single stream formats (no muxing needed)
 AUDIO_FORMAT_CHAINS = {
-    # Each quality: list of format selectors tried in order
-    '128K': [
-        'bestaudio[abr<=128][ext=m4a]',
-        'bestaudio[abr<=128]',
-        'bestaudio[ext=m4a]',
-        'bestaudio',
-    ],
-    '192K': [
-        'bestaudio[abr<=192][ext=m4a]',
-        'bestaudio[abr<=192]',
-        'bestaudio[ext=m4a]',
-        'bestaudio',
-    ],
-    '320K': [
-        'bestaudio[ext=m4a]',
-        'bestaudio',
-    ],
+    '128K': ['bestaudio[abr<=128][ext=m4a]', 'bestaudio[abr<=128]', 'bestaudio[ext=m4a]', 'bestaudio'],
+    '192K': ['bestaudio[abr<=192][ext=m4a]', 'bestaudio[abr<=192]', 'bestaudio[ext=m4a]', 'bestaudio'],
+    '320K': ['bestaudio[ext=m4a]', 'bestaudio'],
 }
 
-# Pre-merged single-file mp4 format codes, mirroring ytdownloader's approach.
-# These are itag codes for formats YouTube already mixes (progressive streams)
-# OR the "best" fallback which yt-dlp resolves to a single-file download.
+# Video format chains — mirrors ytdownloader quality_format_map with fallbacks.
+# Format codes are itag numbers for progressive (pre-merged) mp4 streams,
+# which work for both direct-url streaming AND file download.
+# The height-based fallbacks cover videos that don't have those specific itags.
 VIDEO_FORMAT_CHAINS = {
-    '360p':  ['18', 'best[height<=360][ext=mp4]', 'best[height<=360]', 'best'],
-    '480p':  ['135', 'best[height<=480][ext=mp4]', 'best[height<=480]', 'best'],
-    '720p':  ['22', 'best[height<=720][ext=mp4]', 'best[height<=720]', 'best'],
-    '1080p': ['137', 'best[height<=1080][ext=mp4]', 'best[height<=1080]', 'best'],
-    '240p':  ['133', 'best[height<=240][ext=mp4]', 'best[height<=240]', 'best'],
-    '144p':  ['160', 'best[height<=144][ext=mp4]', 'best[height<=144]', 'best'],
+    '144p': ['160+140', '160+251', 'best[height<=144][ext=mp4]', 'best[height<=144]', 'best'],
+    '240p': ['133+140', '133+251', 'best[height<=240][ext=mp4]', 'best[height<=240]', 'best'],
+    '360p': ['18', '134+140', '134+251', 'best[height<=360][ext=mp4]', 'best[height<=360]', 'best'],
+    '480p': ['135+140', '135+251', 'best[height<=480][ext=mp4]', 'best[height<=480]', 'best'],
+    '720p': ['22', '136+140', '136+251', 'best[height<=720][ext=mp4]', 'best[height<=720]', 'best'],
+    '1080p': ['137+140', '137+251', 'best[height<=1080][ext=mp4]', 'best[height<=1080]', 'best'],
 }
 
 
-async def resolve_format(url: str, format_chain: list[str], cookies_file: Optional[Path]) -> tuple[str, str]:
+async def download_to_temp(url: str, format_selector: str, output_path: Path,
+                           cookies_file: Optional[Path], extra_args: list = None) -> tuple[bool, str]:
     """
-    Try each format selector in the chain and return the first one that
-    yt-dlp can actually resolve to a direct URL plus the real video title.
-    Returns (format_selector_that_worked, video_title).
+    Download using yt-dlp to a temp file.
+    Returns (success, stderr_output).
+    Mirrors ytdownloader's subprocess.run approach but async.
     """
-    cookies_option = f'--cookies "{cookies_file}"' if cookies_file else ""
-    for fmt in format_chain:
-        cmd = f'yt-dlp --dump-json --no-playlist -f "{fmt}" {cookies_option} "{url}"'
-        try:
-            process = await asyncio.create_subprocess_shell(
-                cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            stdout, stderr = await process.communicate()
-            if process.returncode == 0 and stdout.strip():
-                info = json.loads(stdout.decode())
-                # Make sure we got a real direct URL
-                direct_url = info.get('url') or info.get('manifest_url')
-                if direct_url and direct_url.startswith('http'):
-                    title = info.get('title', 'download')
-                    logger.info(f"Format '{fmt}' resolved OK for: {url[:60]}")
-                    return fmt, title
-        except Exception as e:
-            logger.warning(f"Format '{fmt}' failed with exception: {e}")
-    raise HTTPException(status_code=500, detail="No compatible format found for this video.")
+    cmd = [
+        "yt-dlp",
+        "-f", format_selector,
+        "--merge-output-format", "mp4",
+        "-o", str(output_path),
+        "--no-playlist",
+    ]
+    if cookies_file:
+        cmd.extend(["--cookies", str(cookies_file)])
+    if extra_args:
+        cmd.extend(extra_args)
+    cmd.append(url)
 
+    logger.info(f"[yt-dlp] Running: {' '.join(cmd)}")
+    process = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    stdout, stderr = await process.communicate()
+    stderr_str = stderr.decode()
+
+    if process.returncode != 0:
+        logger.error(f"[yt-dlp] Failed (code {process.returncode}): {stderr_str}")
+        return False, stderr_str
+
+    # yt-dlp may produce .mp4, .mkv etc — find whatever it created
+    return True, stderr_str
+
+
+async def download_to_temp_audio(url: str, format_selector: str, output_path: Path,
+                                 audio_quality: str, cookies_file: Optional[Path]) -> bool:
+    """Download and convert audio to mp3 via yt-dlp -x."""
+    cmd = [
+        "yt-dlp",
+        "-x",
+        "--audio-format", "mp3",
+        "--audio-quality", audio_quality,
+        "-o", str(output_path),
+        "--no-playlist",
+    ]
+    if cookies_file:
+        cmd.extend(["--cookies", str(cookies_file)])
+    cmd.append(url)
+
+    logger.info(f"[yt-dlp audio] Running: {' '.join(cmd)}")
+    process = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    _, stderr = await process.communicate()
+    if process.returncode != 0:
+        logger.error(f"[yt-dlp audio] Failed: {stderr.decode()}")
+        return False
+    return True
+
+
+async def find_output_file(base_path: Path) -> Optional[Path]:
+    """
+    yt-dlp may append an extension or change it (e.g. .mp4, .mkv, .webm).
+    Find the actual output file by stem.
+    """
+    parent = base_path.parent
+    stem = base_path.stem
+    for f in parent.iterdir():
+        if f.stem == stem and f.is_file():
+            return f
+    return None
+
+
+async def stream_file_response(file_path: Path, media_type: str,
+                               download_name: str) -> StreamingResponse:
+    """Stream a file from disk, deleting it after."""
+    file_size = file_path.stat().st_size
+
+    async def file_streamer():
+        try:
+            with open(file_path, "rb") as f:
+                while chunk := f.read(1024 * 1024):  # 1MB chunks
+                    yield chunk
+        finally:
+            try:
+                file_path.unlink()
+                logger.info(f"Cleaned up temp file: {file_path}")
+            except Exception:
+                pass
+
+    return StreamingResponse(
+        file_streamer(),
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{download_name}"',
+            "Content-Length": str(file_size),
+            "Cache-Control": "no-cache",
+        }
+    )
+
+
+# ---------------------------------------------------------------------------
+# /download/audio and /download/video — proxy via direct URL (no muxing)
+# ---------------------------------------------------------------------------
 
 @router.get("/download/audio")
 async def download_youtube_audio(
-    song: str = Query(..., description="YouTube URL"),
-    quality: Optional[str] = Query("192K", description="Audio quality (128K, 192K, 320K)")
+    song: str = Query(...),
+    quality: Optional[str] = Query("192K")
 ):
     if not song or not is_valid_youtube_url(song):
         raise HTTPException(status_code=400, detail="Invalid YouTube URL")
@@ -223,35 +285,33 @@ async def download_youtube_audio(
     valid_qualities = ['128K', '192K', '320K']
     audio_quality = quality if quality in valid_qualities else '192K'
     cookies_file = get_cookies_file()
+    format_chain = AUDIO_FORMAT_CHAINS[audio_quality]
 
-    try:
-        format_chain = AUDIO_FORMAT_CHAINS[audio_quality]
-        fmt, title = await resolve_format(song, format_chain, cookies_file)
-        clean_title = sanitize_filename(title)
+    title = await get_video_title(song, cookies_file)
+    clean_title = sanitize_filename(title)
 
-        direct_url, _, _ = await get_video_info_and_url(song, fmt, cookies_file)
+    for fmt in format_chain:
+        try:
+            direct_url, _, _ = await get_video_info_and_url(song, fmt, cookies_file)
+            return StreamingResponse(
+                stream_from_url(direct_url),
+                media_type="audio/mpeg",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{clean_title} [{audio_quality}].mp3"',
+                    "Cache-Control": "no-cache",
+                }
+            )
+        except Exception as e:
+            logger.warning(f"Audio format '{fmt}' failed: {e}")
+            continue
 
-        return StreamingResponse(
-            stream_from_url(direct_url),
-            media_type="audio/mpeg",
-            headers={
-                "Content-Disposition": f'attachment; filename="{clean_title} [{audio_quality}].mp3"',
-                "Cache-Control": "no-cache",
-                "Accept-Ranges": "bytes",
-                "X-Content-Type-Options": "nosniff"
-            }
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"YouTube audio download error: {e}")
-        raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")
+    raise HTTPException(status_code=500, detail="No compatible audio format found.")
 
 
 @router.get("/download/video")
 async def download_youtube_video(
-    song: str = Query(..., description="YouTube URL"),
-    quality: Optional[str] = Query("720p", description="Video quality (144p, 240p, 360p, 480p, 720p, 1080p)")
+    song: str = Query(...),
+    quality: Optional[str] = Query("720p")
 ):
     if not song or not is_valid_youtube_url(song):
         raise HTTPException(status_code=400, detail="Invalid YouTube URL")
@@ -259,196 +319,165 @@ async def download_youtube_video(
     valid_qualities = ['144p', '240p', '360p', '480p', '720p', '1080p']
     video_quality = quality if quality in valid_qualities else '720p'
     cookies_file = get_cookies_file()
+    format_chain = VIDEO_FORMAT_CHAINS[video_quality]
 
-    try:
-        format_chain = VIDEO_FORMAT_CHAINS[video_quality]
-        fmt, title = await resolve_format(song, format_chain, cookies_file)
-        clean_title = sanitize_filename(title)
+    title = await get_video_title(song, cookies_file)
+    clean_title = sanitize_filename(title)
 
-        direct_url, _, _ = await get_video_info_and_url(song, fmt, cookies_file)
+    for fmt in format_chain:
+        try:
+            direct_url, _, _ = await get_video_info_and_url(song, fmt, cookies_file)
+            return StreamingResponse(
+                stream_from_url(direct_url),
+                media_type="video/mp4",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{clean_title} [{video_quality}].mp4"',
+                    "Cache-Control": "no-cache",
+                }
+            )
+        except Exception as e:
+            logger.warning(f"Video format '{fmt}' failed: {e}")
+            continue
 
-        return StreamingResponse(
-            stream_from_url(direct_url),
-            media_type="video/mp4",
-            headers={
-                "Content-Disposition": f'attachment; filename="{clean_title} [{video_quality}].mp4"',
-                "Cache-Control": "no-cache",
-                "Accept-Ranges": "bytes",
-                "X-Content-Type-Options": "nosniff"
-            }
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"YouTube video download error: {e}")
-        raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")
-
-
-@router.get("/download/audio/redirect")
-async def download_youtube_audio_redirect(
-    song: str = Query(..., description="YouTube URL"),
-    quality: Optional[str] = Query("192K", description="Audio quality")
-):
-    if not song or not is_valid_youtube_url(song):
-        raise HTTPException(status_code=400, detail="Invalid YouTube URL")
-
-    cookies_file = get_cookies_file()
-    audio_quality = quality if quality in ['128K', '192K', '320K'] else '192K'
-    format_chain = AUDIO_FORMAT_CHAINS[audio_quality]
-
-    try:
-        fmt, _ = await resolve_format(song, format_chain, cookies_file)
-        direct_url, _, _ = await get_video_info_and_url(song, fmt, cookies_file)
-        return RedirectResponse(url=direct_url, status_code=302)
-    except Exception as e:
-        logger.error(f"YouTube audio redirect error: {e}")
-        raise HTTPException(status_code=500, detail=f"Redirect failed: {str(e)}")
-
-
-@router.get("/download/video/redirect")
-async def download_youtube_video_redirect(
-    song: str = Query(..., description="YouTube URL"),
-    quality: Optional[str] = Query("720p", description="Video quality")
-):
-    if not song or not is_valid_youtube_url(song):
-        raise HTTPException(status_code=400, detail="Invalid YouTube URL")
-
-    cookies_file = get_cookies_file()
-    video_quality = quality if quality in ['144p', '240p', '360p', '480p', '720p', '1080p'] else '720p'
-    format_chain = VIDEO_FORMAT_CHAINS.get(video_quality, VIDEO_FORMAT_CHAINS['720p'])
-
-    try:
-        fmt, _ = await resolve_format(song, format_chain, cookies_file)
-        direct_url, _, _ = await get_video_info_and_url(song, fmt, cookies_file)
-        return RedirectResponse(url=direct_url, status_code=302)
-    except Exception as e:
-        logger.error(f"YouTube video redirect error: {e}")
-        raise HTTPException(status_code=500, detail=f"Redirect failed: {str(e)}")
+    raise HTTPException(status_code=500, detail="No compatible video format found.")
 
 
 # ---------------------------------------------------------------------------
-# Stream endpoints — pipe yt-dlp stdout directly to the client.
-# IMPORTANT: only single-stream (pre-merged) formats work here because
-# yt-dlp cannot mux video+audio when writing to stdout (-o -).
-# We use resolve_format() to pick the best compatible format first,
-# then stream that exact format code.
+# /download/audio/stream and /download/video/stream
+#
+# These use yt-dlp to download to a TEMP FILE (with ffmpeg merge), then
+# serve the file — same approach as ytdownloader. This is the only reliable
+# way to get merged 1080p/720p video+audio without a separate ffmpeg step.
 # ---------------------------------------------------------------------------
 
 @router.get("/download/audio/stream")
 async def download_youtube_audio_stream(
-    song: str = Query(..., description="YouTube URL"),
-    quality: Optional[str] = Query("192K", description="Audio quality")
+    song: str = Query(...),
+    quality: Optional[str] = Query("192K")
 ):
     if not song or not is_valid_youtube_url(song):
         raise HTTPException(status_code=400, detail="Invalid YouTube URL")
 
     cookies_file = get_cookies_file()
     audio_quality = quality if quality in ['128K', '192K', '320K'] else '192K'
-    format_chain = AUDIO_FORMAT_CHAINS[audio_quality]
 
-    try:
-        # Resolve the best working format and get the real title
-        fmt, title = await resolve_format(song, format_chain, cookies_file)
-        clean_title = sanitize_filename(title)
-        logger.info(f"Streaming audio: '{title}' | format: {fmt} | quality: {audio_quality}")
+    # Get real title first
+    title = await get_video_title(song, cookies_file)
+    clean_title = sanitize_filename(title)
+    logger.info(f"Audio stream: '{title}' | quality: {audio_quality}")
 
-        async def stream_yt_dlp():
-            cmd = ["yt-dlp", "--quiet", "--no-warnings", "-f", fmt, "-o", "-", song]
-            if cookies_file:
-                cmd.extend(["--cookies", str(cookies_file)])
+    # Temp file path (without extension — yt-dlp adds it)
+    temp_id = str(uuid.uuid4())
+    temp_base = TEMP_DIR / temp_id
+    temp_mp3 = TEMP_DIR / f"{temp_id}.mp3"
 
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            try:
-                while True:
-                    chunk = await proc.stdout.read(8388608)
-                    if not chunk:
-                        break
-                    yield chunk
-                await proc.wait()
-                if proc.returncode != 0:
-                    stderr_out = await proc.stderr.read()
-                    logger.error(f"yt-dlp streaming error: {stderr_out.decode()}")
-            except Exception as e:
-                logger.error(f"Streaming error: {e}")
-                if proc.returncode is None:
-                    proc.terminate()
-                    await proc.wait()
-                raise
+    success = await download_to_temp_audio(song, "bestaudio/best", temp_base, audio_quality, cookies_file)
 
-        return StreamingResponse(
-            stream_yt_dlp(),
-            media_type="audio/mpeg",
-            headers={
-                "Content-Disposition": f'attachment; filename="{clean_title} [{audio_quality}].mp3"',
-                "Cache-Control": "no-cache"
-            }
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"YouTube audio stream error: {e}")
-        raise HTTPException(status_code=500, detail=f"Streaming failed: {str(e)}")
+    # Find actual output (yt-dlp writes to temp_id.mp3 after -x --audio-format mp3)
+    output_file = temp_mp3 if temp_mp3.exists() else await find_output_file(temp_base)
+
+    if not success or not output_file or not output_file.exists():
+        logger.error("Audio download to temp failed")
+        raise HTTPException(status_code=500, detail="Audio download failed. Try again.")
+
+    if output_file.stat().st_size == 0:
+        output_file.unlink()
+        raise HTTPException(status_code=500, detail="Downloaded audio file is empty.")
+
+    logger.info(f"Audio ready: {output_file} ({output_file.stat().st_size} bytes)")
+    return await stream_file_response(output_file, "audio/mpeg", f"{clean_title} [{audio_quality}].mp3")
 
 
 @router.get("/download/video/stream")
 async def download_youtube_video_stream(
-    song: str = Query(..., description="YouTube URL"),
-    quality: Optional[str] = Query("720p", description="Video quality")
+    song: str = Query(...),
+    quality: Optional[str] = Query("720p")
 ):
     if not song or not is_valid_youtube_url(song):
         raise HTTPException(status_code=400, detail="Invalid YouTube URL")
 
     cookies_file = get_cookies_file()
     video_quality = quality if quality in ['144p', '240p', '360p', '480p', '720p', '1080p'] else '720p'
-    format_chain = VIDEO_FORMAT_CHAINS.get(video_quality, VIDEO_FORMAT_CHAINS['720p'])
+    format_chain = VIDEO_FORMAT_CHAINS[video_quality]
 
-    try:
-        # Resolve the best working format and get the real title
-        fmt, title = await resolve_format(song, format_chain, cookies_file)
-        clean_title = sanitize_filename(title)
-        logger.info(f"Streaming video: '{title}' | format: {fmt} | quality: {video_quality}")
+    # Get real title first
+    title = await get_video_title(song, cookies_file)
+    clean_title = sanitize_filename(title)
+    logger.info(f"Video stream: '{title}' | quality: {video_quality}")
 
-        async def stream_video():
-            cmd = ["yt-dlp", "--quiet", "--no-warnings", "-f", fmt, "-o", "-", song]
-            if cookies_file:
-                cmd.extend(["--cookies", str(cookies_file)])
+    # Try each format in the chain — mirrors ytdownloader's fallback loop
+    temp_id = str(uuid.uuid4())
+    temp_base = TEMP_DIR / f"{temp_id}.mp4"
+    output_file = None
 
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            try:
-                while True:
-                    chunk = await proc.stdout.read(8388608)
-                    if not chunk:
-                        break
-                    yield chunk
-                await proc.wait()
-                if proc.returncode != 0:
-                    stderr_out = await proc.stderr.read()
-                    logger.error(f"yt-dlp video streaming error: {stderr_out.decode()}")
-            except Exception as e:
-                logger.error(f"Video stream error: {e}")
-                if proc.returncode is None:
-                    proc.terminate()
-                    await proc.wait()
-                raise
+    for fmt in format_chain:
+        success, stderr = await download_to_temp(song, fmt, temp_base, cookies_file)
+        # Find actual file (may have different extension after merge)
+        candidate = await find_output_file(TEMP_DIR / temp_id)
+        if not candidate:
+            candidate = temp_base if temp_base.exists() else None
 
-        return StreamingResponse(
-            stream_video(),
-            media_type="video/mp4",
-            headers={
-                "Content-Disposition": f'attachment; filename="{clean_title} [{video_quality}].mp4"',
-                "Cache-Control": "no-cache"
-            }
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"YouTube video stream error: {e}")
-        raise HTTPException(status_code=500, detail=f"Video streaming failed: {str(e)}")
+        if success and candidate and candidate.exists() and candidate.stat().st_size > 0:
+            output_file = candidate
+            logger.info(f"Format '{fmt}' succeeded → {output_file}")
+            break
+        else:
+            logger.warning(f"Format '{fmt}' failed or produced empty file, trying next...")
+            # Clean up any partial file
+            for f in TEMP_DIR.glob(f"{temp_id}*"):
+                try:
+                    f.unlink()
+                except Exception:
+                    pass
+
+    if not output_file or not output_file.exists():
+        raise HTTPException(status_code=500, detail="Video download failed with all formats. Try a lower quality.")
+
+    logger.info(f"Video ready: {output_file} ({output_file.stat().st_size} bytes)")
+    return await stream_file_response(output_file, "video/mp4", f"{clean_title} [{video_quality}].mp4")
+
+
+# ---------------------------------------------------------------------------
+# Redirect endpoints (unchanged logic, updated to use format chains)
+# ---------------------------------------------------------------------------
+
+@router.get("/download/audio/redirect")
+async def download_youtube_audio_redirect(
+    song: str = Query(...),
+    quality: Optional[str] = Query("192K")
+):
+    if not song or not is_valid_youtube_url(song):
+        raise HTTPException(status_code=400, detail="Invalid YouTube URL")
+
+    cookies_file = get_cookies_file()
+    audio_quality = quality if quality in ['128K', '192K', '320K'] else '192K'
+
+    for fmt in AUDIO_FORMAT_CHAINS[audio_quality]:
+        try:
+            direct_url, _, _ = await get_video_info_and_url(song, fmt, cookies_file)
+            return RedirectResponse(url=direct_url, status_code=302)
+        except Exception:
+            continue
+
+    raise HTTPException(status_code=500, detail="Redirect failed: no format available.")
+
+
+@router.get("/download/video/redirect")
+async def download_youtube_video_redirect(
+    song: str = Query(...),
+    quality: Optional[str] = Query("720p")
+):
+    if not song or not is_valid_youtube_url(song):
+        raise HTTPException(status_code=400, detail="Invalid YouTube URL")
+
+    cookies_file = get_cookies_file()
+    video_quality = quality if quality in ['144p', '240p', '360p', '480p', '720p', '1080p'] else '720p'
+
+    for fmt in VIDEO_FORMAT_CHAINS.get(video_quality, VIDEO_FORMAT_CHAINS['720p']):
+        try:
+            direct_url, _, _ = await get_video_info_and_url(song, fmt, cookies_file)
+            return RedirectResponse(url=direct_url, status_code=302)
+        except Exception:
+            continue
+
+    raise HTTPException(status_code=500, detail="Redirect failed: no format available.")
