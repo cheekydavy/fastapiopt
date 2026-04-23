@@ -19,6 +19,12 @@ logger = logging.getLogger(__name__)
 TEMP_DIR = Path("temp")
 TEMP_DIR.mkdir(exist_ok=True)
 
+# JS runtime flags required for YouTube n-challenge & signature solving.
+# Without these, yt-dlp cannot decrypt formats and falls back to images only.
+# Mirrors ytdownloader: --js-runtimes node --remote-components ejs:github
+JS_ARGS = ["--js-runtimes", "node", "--remote-components", "ejs:github"]
+JS_OPTS = ' '.join(JS_ARGS)  # shell-string version for create_subprocess_shell calls
+
 
 def get_cookies_file() -> Path:
     possible_paths = [
@@ -51,7 +57,7 @@ def sanitize_filename(name: str) -> str:
 async def get_video_title(url: str, cookies_file: Optional[Path] = None) -> str:
     """Fetch the real video title via --dump-json."""
     cookies_option = f'--cookies "{cookies_file}"' if cookies_file else ""
-    cmd = f'yt-dlp --dump-json --no-playlist {cookies_option} "{url}"'
+    cmd = f'yt-dlp --dump-json --no-playlist {JS_OPTS} {cookies_option} "{url}"'
     try:
         process = await asyncio.create_subprocess_shell(
             cmd,
@@ -66,7 +72,7 @@ async def get_video_title(url: str, cookies_file: Optional[Path] = None) -> str:
         logger.warning(f"dump-json title fetch failed: {e}")
 
     # Fallback: --get-title
-    cmd2 = f'yt-dlp --get-title {cookies_option} "{url}"'
+    cmd2 = f'yt-dlp --get-title {JS_OPTS} {cookies_option} "{url}"'
     try:
         process2 = await asyncio.create_subprocess_shell(
             cmd2,
@@ -85,7 +91,7 @@ async def get_video_title(url: str, cookies_file: Optional[Path] = None) -> str:
 
 async def get_video_info_and_url(url: str, format_selector: str, cookies_file: Optional[Path] = None) -> tuple[str, str, str]:
     cookies_option = f'--cookies "{cookies_file}"' if cookies_file else ""
-    cmd = f'yt-dlp --dump-json -f "{format_selector}" {cookies_option} "{url}"'
+    cmd = f'yt-dlp --dump-json --no-playlist -f "{format_selector}" {JS_OPTS} {cookies_option} "{url}"'
 
     process = await asyncio.create_subprocess_shell(
         cmd,
@@ -177,7 +183,7 @@ async def download_to_temp(url: str, format_selector: str, output_path: Path,
         "--merge-output-format", "mp4",
         "-o", str(output_path),
         "--no-playlist",
-    ]
+    ] + JS_ARGS
     if cookies_file:
         cmd.extend(["--cookies", str(cookies_file)])
     if extra_args:
@@ -211,7 +217,7 @@ async def download_to_temp_audio(url: str, format_selector: str, output_path: Pa
         "--audio-quality", audio_quality,
         "-o", str(output_path),
         "--no-playlist",
-    ]
+    ] + JS_ARGS
     if cookies_file:
         cmd.extend(["--cookies", str(cookies_file)])
     cmd.append(url)

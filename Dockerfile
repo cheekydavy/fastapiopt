@@ -3,11 +3,18 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies including Node.js (required for yt-dlp JS challenge solving)
 RUN apt-get update && apt-get install -y \
     ffmpeg \
+    curl \
+    gnupg \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Verify installs
+RUN node -v && npm -v && ffmpeg -version
 
 # Copy requirements first to leverage Docker cache
 COPY requirements.txt .
