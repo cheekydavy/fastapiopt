@@ -1,526 +1,556 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mbuvi Tech Downloaders</title>
-    <link rel="stylesheet" href="/static/style.css" />
-    <link rel="icon" type="image/png" href="/static/icon99.png">
-    <link rel="shortcut icon" href="/static/icon99.png" type="image/x-icon">
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"
-    />
-    <meta name="description" content="Download videos and audio from YouTube, TikTok, Instagram, Facebook, and X (Twitter) with ease!" />
-  </head>
-  <body>
-    <!-- Floating particles for animation -->
-    <div class="particles-container">
-      <div class="particle"></div>
-      <div class="particle"></div>
-      <div class="particle"></div>
-      <div class="particle"></div>
-      <div class="particle"></div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mbuvi Tech — Social Media Downloader</title>
+  <meta name="description" content="Download videos and audio from YouTube, X (Twitter), TikTok, Instagram, and Facebook. Fast, free, no sign-up." />
+  <meta name="theme-color" content="#0c0c0c" />
+  <link rel="icon" type="image/png" href="/static/icon99.png" />
+  <link rel="shortcut icon" href="/static/icon99.png" type="image/x-icon" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+  <!-- Skip to main content (accessibility) -->
+  <a href="#downloaders" class="skip-link">Skip to downloaders</a>
+
+  <!-- ═══════════════════════════════════ NAV ═══════════════════════════════════ -->
+  <nav class="navbar" role="navigation" aria-label="Main navigation">
+    <div class="nav-inner">
+      <a href="#" class="nav-logo" aria-label="Mbuvi Tech home">
+        <span class="logo-mark">MT</span>
+        <span class="logo-text">Mbuvi<span class="accent">Tech</span></span>
+      </a>
+
+      <ul class="nav-menu" id="nav-menu" role="list">
+        <li><a href="#downloaders" class="nav-link">Downloaders</a></li>
+        <li><a href="#features"    class="nav-link">Features</a></li>
+        <li><a href="#faq"         class="nav-link">FAQ</a></li>
+        <li>
+          <a href="https://sessions.mbuvitech.site" target="_blank" rel="noopener" class="nav-link nav-cta">
+            WhatsApp Bot <i class="fab fa-whatsapp" aria-hidden="true"></i>
+          </a>
+        </li>
+      </ul>
+
+      <button class="hamburger" id="hamburger" aria-label="Toggle menu" aria-expanded="false" aria-controls="nav-menu">
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ══════════════════════════════════ HERO ══════════════════════════════════ -->
+  <header class="hero" role="banner">
+    <div class="hero-inner">
+      <div class="hero-badge">
+        <span class="badge-dot" aria-hidden="true"></span>
+        Free · No sign-up · No ads
+      </div>
+      <h1 class="hero-title">
+        Download anything.<br />
+        <span class="accent">Instantly.</span>
+      </h1>
+      <p class="hero-sub">
+        Pull videos and audio from YouTube, X, TikTok, Instagram &amp; Facebook
+        in seconds — no watermarks, no limits.
+      </p>
+      <div class="hero-platforms" aria-label="Supported platforms">
+        <span class="plat-chip yt"  title="YouTube">   <i class="fab fa-youtube"   aria-hidden="true"></i> YouTube   </span>
+        <span class="plat-chip x"   title="X Twitter"> <i class="fab fa-x-twitter" aria-hidden="true"></i> X         </span>
+        <span class="plat-chip tt"  title="TikTok">    <i class="fab fa-tiktok"    aria-hidden="true"></i> TikTok    </span>
+        <span class="plat-chip ig"  title="Instagram">  <i class="fab fa-instagram" aria-hidden="true"></i> Instagram </span>
+        <span class="plat-chip fb"  title="Facebook">  <i class="fab fa-facebook"  aria-hidden="true"></i> Facebook  </span>
+      </div>
+    </div>
+    <div class="hero-glow" aria-hidden="true"></div>
+  </header>
+
+  <!-- ══════════════════════════════ DOWNLOADERS ═══════════════════════════════ -->
+  <main class="container" id="main-content">
+    <section id="downloaders" aria-label="Download tools">
+      <div class="section-label">
+        <span class="label-line" aria-hidden="true"></span>
+        <span>Choose your platform</span>
+        <span class="label-line" aria-hidden="true"></span>
+      </div>
+
+      <div class="cards-grid">
+
+        <!-- ───── YouTube ───── -->
+        <article class="card" data-platform="youtube" aria-label="YouTube downloader">
+          <div class="card-top">
+            <div class="card-icon yt-icon" aria-hidden="true">
+              <i class="fab fa-youtube"></i>
+            </div>
+            <div class="card-meta">
+              <h2 class="card-title">YouTube</h2>
+              <span class="card-tag">Video &amp; Audio</span>
+            </div>
+            <span class="card-speed speed-fast" aria-label="Fast streaming download">Fast</span>
+          </div>
+
+          <p class="card-desc">Search by title or paste a link. Download as MP3 with embedded artwork or MP4 in your chosen quality.</p>
+
+          <!-- Search row -->
+          <div class="field-group" role="search" aria-label="Search YouTube">
+            <label for="youtube-search" class="field-label">Search by title</label>
+            <div class="input-row">
+              <input type="search" id="youtube-search" class="field-input" placeholder="e.g. Tems — Free Mind" autocomplete="off" />
+              <button class="icon-btn" onclick="searchYouTube()" aria-label="Search YouTube">
+                <i class="fas fa-search" aria-hidden="true"></i>
+              </button>
+            </div>
+            <div id="youtube-loading" class="inline-loader" aria-live="polite" aria-busy="false" hidden>
+              <span class="spinner" aria-hidden="true"></span>
+              <span>Searching…</span>
+            </div>
+          </div>
+
+          <!-- URL row -->
+          <div class="field-group">
+            <label for="youtube-url" class="field-label">Or paste a URL</label>
+            <div class="input-row">
+              <input type="url" id="youtube-url" class="field-input" placeholder="https://youtube.com/watch?v=…" />
+              <button class="icon-btn paste-btn" onclick="pasteFromClipboard('youtube-url')" aria-label="Paste from clipboard">
+                <i class="fas fa-clipboard" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Options -->
+          <div class="options-row">
+            <div class="select-wrap">
+              <label for="youtube-type" class="field-label">Type</label>
+              <select id="youtube-type" class="field-select" onchange="updateYouTubeQuality()">
+                <option value="audio">🎵 Audio (MP3)</option>
+                <option value="video">📹 Video (MP4)</option>
+              </select>
+            </div>
+            <div class="select-wrap">
+              <label for="youtube-quality" class="field-label">Quality</label>
+              <select id="youtube-quality" class="field-select"></select>
+            </div>
+          </div>
+
+          <button class="dl-btn youtube-btn" onclick="download('youtube')" aria-label="Download from YouTube">
+            <span class="btn-fill" aria-hidden="true"></span>
+            <i class="fas fa-download" aria-hidden="true"></i>
+            <span>Download</span>
+          </button>
+
+          <div id="youtube-download-status" class="status-bar" hidden aria-live="polite">
+            <span class="spinner" aria-hidden="true"></span>
+            <span>Fetching media…</span>
+          </div>
+          <div id="youtube-success" class="status-bar status-ok" hidden aria-live="polite">
+            <i class="fas fa-check-circle" aria-hidden="true"></i>
+            <span>Downloaded successfully!</span>
+          </div>
+          <p id="youtube-error" class="status-bar status-err" role="alert" hidden></p>
+        </article>
+
+        <!-- ───── X (Twitter) ───── -->
+        <article class="card" data-platform="x" aria-label="X Twitter downloader">
+          <div class="card-top">
+            <div class="card-icon x-icon" aria-hidden="true">
+              <i class="fab fa-x-twitter"></i>
+            </div>
+            <div class="card-meta">
+              <h2 class="card-title">X (Twitter)</h2>
+              <span class="card-tag">Video</span>
+            </div>
+            <span class="card-speed speed-fast" aria-label="Fast streaming download">Fast</span>
+          </div>
+
+          <p class="card-desc">Paste any X post link. Videos are streamed directly to your device at full quality.</p>
+
+          <div class="field-group">
+            <label for="x-url" class="field-label">Post URL</label>
+            <div class="input-row">
+              <input type="url" id="x-url" class="field-input" placeholder="https://x.com/user/status/…" />
+              <button class="icon-btn paste-btn" onclick="pasteFromClipboard('x-url')" aria-label="Paste from clipboard">
+                <i class="fas fa-clipboard" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
+
+          <button class="dl-btn x-btn" onclick="download('x')" aria-label="Download from X">
+            <span class="btn-fill" aria-hidden="true"></span>
+            <i class="fas fa-download" aria-hidden="true"></i>
+            <span>Download</span>
+          </button>
+
+          <div id="x-download-status" class="status-bar" hidden aria-live="polite">
+            <span class="spinner" aria-hidden="true"></span>
+            <span>Fetching media…</span>
+          </div>
+          <div id="x-success" class="status-bar status-ok" hidden aria-live="polite">
+            <i class="fas fa-check-circle" aria-hidden="true"></i>
+            <span>Downloaded successfully!</span>
+          </div>
+          <p id="x-error" class="status-bar status-err" role="alert" hidden></p>
+        </article>
+
+        <!-- ───── TikTok ───── -->
+        <article class="card" data-platform="tiktok" aria-label="TikTok downloader">
+          <div class="card-top">
+            <div class="card-icon tt-icon" aria-hidden="true">
+              <i class="fab fa-tiktok"></i>
+            </div>
+            <div class="card-meta">
+              <h2 class="card-title">TikTok</h2>
+              <span class="card-tag">Video &amp; Audio</span>
+            </div>
+            <span class="card-speed speed-api" aria-label="API-powered download">API</span>
+          </div>
+
+          <p class="card-desc">No watermark video or audio-only. Powered by tikwm — fast and reliable.</p>
+
+          <div class="field-group">
+            <label for="tiktok-url" class="field-label">TikTok URL</label>
+            <div class="input-row">
+              <input type="url" id="tiktok-url" class="field-input" placeholder="https://tiktok.com/@user/video/…" />
+              <button class="icon-btn paste-btn" onclick="pasteFromClipboard('tiktok-url')" aria-label="Paste from clipboard">
+                <i class="fas fa-clipboard" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="options-row options-single">
+            <div class="select-wrap">
+              <label for="tiktok-type" class="field-label">Type</label>
+              <select id="tiktok-type" class="field-select">
+                <option value="video">📹 Video (no watermark)</option>
+                <option value="audio">🎵 Audio only</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="dl-btn tiktok-btn" onclick="download('tiktok')" aria-label="Download from TikTok">
+            <span class="btn-fill" aria-hidden="true"></span>
+            <i class="fas fa-download" aria-hidden="true"></i>
+            <span>Download</span>
+          </button>
+
+          <div id="tiktok-download-status" class="status-bar" hidden aria-live="polite">
+            <span class="spinner" aria-hidden="true"></span>
+            <span>Fetching media…</span>
+          </div>
+          <div id="tiktok-success" class="status-bar status-ok" hidden aria-live="polite">
+            <i class="fas fa-check-circle" aria-hidden="true"></i>
+            <span>Downloaded successfully!</span>
+          </div>
+          <p id="tiktok-error" class="status-bar status-err" role="alert" hidden></p>
+        </article>
+
+        <!-- ───── Instagram ───── -->
+        <article class="card" data-platform="instagram" aria-label="Instagram downloader">
+          <div class="card-top">
+            <div class="card-icon ig-icon" aria-hidden="true">
+              <i class="fab fa-instagram"></i>
+            </div>
+            <div class="card-meta">
+              <h2 class="card-title">Instagram</h2>
+              <span class="card-tag">Reels &amp; Videos</span>
+            </div>
+            <span class="card-speed speed-secure" aria-label="Secure file download">Secure</span>
+          </div>
+
+          <p class="card-desc">Download Reels, videos and stories. Works on public posts. Paste the link and go.</p>
+
+          <div class="field-group">
+            <label for="instagram-url" class="field-label">Post or Reel URL</label>
+            <div class="input-row">
+              <input type="url" id="instagram-url" class="field-input" placeholder="https://instagram.com/reel/…" />
+              <button class="icon-btn paste-btn" onclick="pasteFromClipboard('instagram-url')" aria-label="Paste from clipboard">
+                <i class="fas fa-clipboard" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
+
+          <button class="dl-btn instagram-btn" onclick="download('instagram')" aria-label="Download from Instagram">
+            <span class="btn-fill" aria-hidden="true"></span>
+            <i class="fas fa-download" aria-hidden="true"></i>
+            <span>Download</span>
+          </button>
+
+          <div id="instagram-download-status" class="status-bar" hidden aria-live="polite">
+            <span class="spinner" aria-hidden="true"></span>
+            <span>Fetching media…</span>
+          </div>
+          <div id="instagram-success" class="status-bar status-ok" hidden aria-live="polite">
+            <i class="fas fa-check-circle" aria-hidden="true"></i>
+            <span>Downloaded successfully!</span>
+          </div>
+          <p id="instagram-error" class="status-bar status-err" role="alert" hidden></p>
+        </article>
+
+        <!-- ───── Facebook ───── -->
+        <article class="card" data-platform="facebook" aria-label="Facebook downloader">
+          <div class="card-top">
+            <div class="card-icon fb-icon" aria-hidden="true">
+              <i class="fab fa-facebook"></i>
+            </div>
+            <div class="card-meta">
+              <h2 class="card-title">Facebook</h2>
+              <span class="card-tag">Videos</span>
+            </div>
+            <span class="card-speed speed-secure" aria-label="Secure file download">Secure</span>
+          </div>
+
+          <p class="card-desc">Download public Facebook videos. Paste the video page link below.</p>
+
+          <div class="field-group">
+            <label for="facebook-url" class="field-label">Video URL</label>
+            <div class="input-row">
+              <input type="url" id="facebook-url" class="field-input" placeholder="https://facebook.com/watch?v=…" />
+              <button class="icon-btn paste-btn" onclick="pasteFromClipboard('facebook-url')" aria-label="Paste from clipboard">
+                <i class="fas fa-clipboard" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
+
+          <button class="dl-btn facebook-btn" onclick="download('facebook')" aria-label="Download from Facebook">
+            <span class="btn-fill" aria-hidden="true"></span>
+            <i class="fas fa-download" aria-hidden="true"></i>
+            <span>Download</span>
+          </button>
+
+          <div id="facebook-download-status" class="status-bar" hidden aria-live="polite">
+            <span class="spinner" aria-hidden="true"></span>
+            <span>Fetching media…</span>
+          </div>
+          <div id="facebook-success" class="status-bar status-ok" hidden aria-live="polite">
+            <i class="fas fa-check-circle" aria-hidden="true"></i>
+            <span>Downloaded successfully!</span>
+          </div>
+          <p id="facebook-error" class="status-bar status-err" role="alert" hidden></p>
+        </article>
+
+      </div><!-- /cards-grid -->
+    </section>
+
+    <!-- ══════════════════════════════ HOW IT WORKS ═══════════════════════════ -->
+    <section class="how-section" id="how-to-use" aria-label="How to use">
+      <div class="section-label">
+        <span class="label-line" aria-hidden="true"></span>
+        <span>How it works</span>
+        <span class="label-line" aria-hidden="true"></span>
+      </div>
+      <div class="steps-row">
+        <div class="step-item">
+          <div class="step-num" aria-hidden="true">01</div>
+          <h3>Copy the link</h3>
+          <p>Grab the URL from any supported platform on mobile or desktop.</p>
+        </div>
+        <div class="step-arrow" aria-hidden="true"><i class="fas fa-arrow-right"></i></div>
+        <div class="step-item">
+          <div class="step-num" aria-hidden="true">02</div>
+          <h3>Paste &amp; choose</h3>
+          <p>Select your format — video or audio — and preferred quality.</p>
+        </div>
+        <div class="step-arrow" aria-hidden="true"><i class="fas fa-arrow-right"></i></div>
+        <div class="step-item">
+          <div class="step-num" aria-hidden="true">03</div>
+          <h3>Hit download</h3>
+          <p>File lands directly in your browser downloads. Done.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════ FEATURES ══════════════════════════════ -->
+    <section class="features-section" id="features" aria-label="Features">
+      <div class="section-label">
+        <span class="label-line" aria-hidden="true"></span>
+        <span>Why Mbuvi Tech</span>
+        <span class="label-line" aria-hidden="true"></span>
+      </div>
+      <div class="features-grid">
+        <div class="feat-card">
+          <i class="fas fa-bolt feat-icon" aria-hidden="true"></i>
+          <h3>Blazing fast</h3>
+          <p>YouTube and X stream directly to your browser. Most downloads finish in under 10 seconds.</p>
+        </div>
+        <div class="feat-card">
+          <i class="fas fa-shield-halved feat-icon" aria-hidden="true"></i>
+          <h3>Zero tracking</h3>
+          <p>No account, no cookies, no analytics. Your URLs never leave your session.</p>
+        </div>
+        <div class="feat-card">
+          <i class="fas fa-music feat-icon" aria-hidden="true"></i>
+          <h3>Proper metadata</h3>
+          <p>MP3s come with embedded album art, title, and artist tags — ready for any music player.</p>
+        </div>
+        <div class="feat-card">
+          <i class="fas fa-mobile-screen feat-icon" aria-hidden="true"></i>
+          <h3>Mobile-first</h3>
+          <p>Designed to work perfectly on any screen size. Download on your phone without fuss.</p>
+        </div>
+        <div class="feat-card">
+          <i class="fas fa-infinity feat-icon" aria-hidden="true"></i>
+          <h3>No limits</h3>
+          <p>Download as many files as you want. No caps, no queues, no premium tier.</p>
+        </div>
+        <div class="feat-card">
+          <i class="fab fa-whatsapp feat-icon" aria-hidden="true"></i>
+          <h3>WhatsApp Bot</h3>
+          <p>Download right inside WhatsApp. Send a link to our bot and get your file instantly.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════ FORMATS ════════════════════════════════ -->
+    <section class="formats-section" id="formats" aria-label="Supported formats">
+      <div class="section-label">
+        <span class="label-line" aria-hidden="true"></span>
+        <span>Formats &amp; quality</span>
+        <span class="label-line" aria-hidden="true"></span>
+      </div>
+      <div class="formats-row">
+        <div class="fmt-block">
+          <h3><i class="fas fa-film" aria-hidden="true"></i> Video</h3>
+          <div class="fmt-tags">
+            <span class="fmt-tag">MP4</span>
+            <span class="fmt-tag">WEBM</span>
+            <span class="fmt-tag">1080p</span>
+            <span class="fmt-tag">720p</span>
+            <span class="fmt-tag">480p</span>
+            <span class="fmt-tag">360p</span>
+          </div>
+        </div>
+        <div class="fmt-divider" aria-hidden="true"></div>
+        <div class="fmt-block">
+          <h3><i class="fas fa-headphones" aria-hidden="true"></i> Audio</h3>
+          <div class="fmt-tags">
+            <span class="fmt-tag accent-tag">MP3</span>
+            <span class="fmt-tag">AAC</span>
+            <span class="fmt-tag accent-tag">320 kbps</span>
+            <span class="fmt-tag">192 kbps</span>
+            <span class="fmt-tag">128 kbps</span>
+            <span class="fmt-tag accent-tag">Cover art</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════ FAQ ════════════════════════════════ -->
+    <section class="faq-section" id="faq" aria-label="Frequently asked questions">
+      <div class="section-label">
+        <span class="label-line" aria-hidden="true"></span>
+        <span>FAQ</span>
+        <span class="label-line" aria-hidden="true"></span>
+      </div>
+      <div class="faq-list">
+
+        <details class="faq-item">
+          <summary class="faq-q">Is this completely free?</summary>
+          <div class="faq-a">
+            <p>Yes. No sign-up, no subscription, no hidden fees. Download as much as you want.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-q">Do I need to install anything?</summary>
+          <div class="faq-a">
+            <p>Nothing. It runs in your browser tab. Works on Chrome, Firefox, Safari, and Edge.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-q">Why do YouTube downloads have a search option?</summary>
+          <div class="faq-a">
+            <p>For convenience — you can type a song name and we find the YouTube link for you automatically, then you just hit download.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-q">Why does TikTok video have no watermark?</summary>
+          <div class="faq-a">
+            <p>We use the tikwm API which pulls the original source file before TikTok applies the watermark overlay.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-q">How long do downloads take?</summary>
+          <div class="faq-a">
+            <p>YouTube and X stream in real time — usually 5–30 seconds. TikTok, Instagram, and Facebook download to our server first then transfer to you, so slightly longer for large files.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-q">Is downloading videos legal?</summary>
+          <div class="faq-a">
+            <p>Only download content you have permission to use or content that is in the public domain. Always respect copyright law and each platform's terms of service.</p>
+          </div>
+        </details>
+
+      </div>
+    </section>
+
+  </main><!-- /container -->
+
+  <!-- ════════════════════════════════ FOOTER ═══════════════════════════════ -->
+  <footer class="footer" role="contentinfo">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <span class="logo-mark">MT</span>
+        <div>
+          <p class="footer-name">Mbuvi<span class="accent">Tech</span></p>
+          <p class="footer-tagline">Fast. Free. No nonsense.</p>
+        </div>
+      </div>
+
+      <div class="footer-cols">
+        <div class="footer-col">
+          <h4>Platforms</h4>
+          <ul>
+            <li><a href="#downloaders"><i class="fab fa-youtube" aria-hidden="true"></i> YouTube</a></li>
+            <li><a href="#downloaders"><i class="fab fa-x-twitter" aria-hidden="true"></i> X (Twitter)</a></li>
+            <li><a href="#downloaders"><i class="fab fa-tiktok" aria-hidden="true"></i> TikTok</a></li>
+            <li><a href="#downloaders"><i class="fab fa-instagram" aria-hidden="true"></i> Instagram</a></li>
+            <li><a href="#downloaders"><i class="fab fa-facebook" aria-hidden="true"></i> Facebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Links</h4>
+          <ul>
+            <li><a href="https://sessions.mbuvitech.site" target="_blank" rel="noopener">WhatsApp Bot</a></li>
+            <li><a href="https://github.com/cheekydavy" target="_blank" rel="noopener">GitHub</a></li>
+            <li><a href="https://instagram.com/_mbuvi" target="_blank" rel="noopener">Instagram</a></li>
+            <li><a href="mailto:mbuvidavid26@gmail.com">Contact</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-socials">
+        <a href="https://instagram.com/_mbuvi" target="_blank" rel="noopener" aria-label="Instagram">
+          <i class="fab fa-instagram" aria-hidden="true"></i>
+        </a>
+        <a href="https://github.com/cheekydavy" target="_blank" rel="noopener" aria-label="GitHub">
+          <i class="fab fa-github" aria-hidden="true"></i>
+        </a>
+        <a href="https://sessions.mbuvitech.site" target="_blank" rel="noopener" aria-label="WhatsApp Bot">
+          <i class="fab fa-whatsapp" aria-hidden="true"></i>
+        </a>
+        <a href="mailto:mbuvidavid26@gmail.com" aria-label="Email">
+          <i class="fas fa-envelope" aria-hidden="true"></i>
+        </a>
+      </div>
     </div>
 
-    <!-- Navigation -->
-    <nav class="navbar">
-      <div class="nav-container">
-        <div class="nav-logo">
-          <i class="fas fa-download"></i>
-          <span>Mbuvi Tech</span>
-        </div>
-        <div class="nav-menu" id="nav-menu">
-          <a href="#downloaders" class="nav-link">Downloaders</a>
-          <a href="#features" class="nav-link">Features</a>
-          <a href="#formats" class="nav-link">Formats</a>
-          <a href="#faq" class="nav-link">FAQ</a>
-          <a href="https://sessions.mbuvitech.site" target="_blank" class="nav-link">WhatsApp Bot</a>
-        </div>
-        <div class="hamburger" id="hamburger">
-          <span class="bar"></span>
-          <span class="bar"></span>
-          <span class="bar"></span>
-        </div>
-      </div>
-    </nav>
+    <div class="footer-bottom">
+      <p id="footer-copyright">&copy; 2026 Mbuvi Tech. All rights reserved.</p>
+      <p class="footer-note">Built with ❤️ by <a href="https://github.com/cheekydavy" target="_blank" rel="noopener">Davy Mbuvi</a></p>
+    </div>
+  </footer>
 
-    <header>
-      <div class="header-content">
-        <h1>
-          <i class="fas fa-download"></i>
-          Mbuvi Tech Social Media Downloaders
-        </h1>
-        <p>Download videos and audio from your favorite platforms with ease!</p>
-        <div class="stats-bar">
-          <div class="stat-item">
-            <i class="fas fa-users"></i>
-            <span class="stat-number">500+</span>
-            <span class="stat-label">Happy Users</span>
-          </div>
-          <div class="stat-item">
-            <i class="fas fa-download"></i>
-            <span class="stat-number">1000+</span>
-            <span class="stat-label">Downloads</span>
-          </div>
-        </div>
-      </div>
-    </header>
-
-    <main class="container">
-    <!-- Downloaders Section -->
-      <section id="downloaders">
-        <div class="grid">
-          <!-- YouTube -->
-          <div class="card" data-platform="youtube">
-            <div class="card-header">
-              <i class="fab fa-youtube" style="color: #ff0000"></i>
-              <h2>YouTube Downloader</h2>
-              <span class="download-method streaming">🚀 Streaming</span>
-            </div>
-            <p>Search by song name or paste a YouTube link. <br>Lightning fast with real-time progress!</p>
-            
-            <div class="input-group">
-              <input
-                type="text"
-                id="youtube-search"
-                placeholder="Search for a song..."
-              />
-              <button class="search-btn" onclick="searchYouTube()">
-                <i class="fas fa-search"></i>
-              </button>
-            </div>
-            <div id="youtube-loading" class="loading">
-              <div class="loading-spinner"></div>
-              <span>Searching for song...</span>
-            </div>
-
-            <div class="input-group">
-              <input type="url" id="youtube-url" placeholder="YouTube video URL" />
-              <button class="paste-btn" onclick="pasteFromClipboard('youtube-url')">
-                <i class="fas fa-paste"></i>
-              </button>
-            </div>
-            
-            <div class="download-options">
-              <select id="youtube-type" onchange="updateYouTubeQuality()">
-                <option value="video">📹 Video</option>
-                <option value="audio">🎵 Audio</option>
-              </select>
-              <select id="youtube-quality">
-                <option value="1080p">1080p</option>
-                <option value="720p">720p</option>
-              </select>
-            </div>
-
-            <button class="youtube-btn" onclick="download('youtube')">
-              <i class="fas fa-download"></i>
-              <span>Download</span>
-            </button>
-            
-            <!-- Download Status Messages -->
-            <div id="youtube-download-status" class="download-status" style="display: none;">
-              <div class="loading-spinner"></div>
-              <span>Starting download...</span>
-            </div>
-            <div id="youtube-success" class="success-message" style="display: none;">
-              <i class="fas fa-check-circle"></i>
-              <span>Downloaded successfully!</span>
-            </div>
-            
-            <p id="youtube-error" class="error"></p>
-          </div>
-
-          <!-- TikTok -->
-          <div class="card" data-platform="tiktok">
-            <div class="card-header">
-              <i class="fab fa-tiktok" style="color: #000000"></i>
-              <h2>TikTok Downloader</h2>
-              <span class="download-method file-based">⚡ Fast API</span>
-            </div>
-            <p>Download TikTok videos or audio tracks. Powered by tikwm for reliable, fast downloads.</p>
-            <div class="input-group">
-              <input type="url" id="tiktok-url" placeholder="Paste TikTok URL" />
-              <button class="paste-btn" onclick="pasteFromClipboard('tiktok-url')">
-                <i class="fas fa-paste"></i>
-              </button>
-            </div>
-            <select id="tiktok-type">
-              <option value="video">📹 Video</option>
-              <option value="audio">🎵 Audio</option>
-            </select>
-            <button class="tiktok-btn" onclick="download('tiktok')">
-              <i class="fas fa-download"></i>
-              <span>Download</span>
-            </button>
-            
-            <!-- Download Status Messages -->
-            <div id="tiktok-download-status" class="download-status" style="display: none;">
-              <div class="loading-spinner"></div>
-              <span>Starting download...</span>
-            </div>
-            <div id="tiktok-success" class="success-message" style="display: none;">
-              <i class="fas fa-check-circle"></i>
-              <span>Downloaded successfully!</span>
-            </div>
-            
-            <p id="tiktok-error" class="error"></p>
-          </div>
-
-          <!-- Instagram -->
-          <div class="card" data-platform="instagram">
-            <div class="card-header">
-              <i class="fab fa-instagram" style="color: #e1306c"></i>
-              <h2>Instagram Downloader</h2>
-              <span class="download-method file-based">📁 Secure</span>
-            </div>
-            <p>Download Instagram videos and reels. Reliable downloads from secure platform.</p>
-            <div class="input-group">
-              <input
-                type="url"
-                id="instagram-url"
-                placeholder="Paste Instagram URL"
-              />
-              <button class="paste-btn" onclick="pasteFromClipboard('instagram-url')">
-                <i class="fas fa-paste"></i>
-              </button>
-            </div>
-            <button class="instagram-btn" onclick="download('instagram')">
-              <i class="fas fa-download"></i>
-              <span>Download</span>
-            </button>
-            
-            <!-- Download Status Messages -->
-            <div id="instagram-download-status" class="download-status" style="display: none;">
-              <div class="loading-spinner"></div>
-              <span>Starting download...</span>
-            </div>
-            <div id="instagram-success" class="success-message" style="display: none;">
-              <i class="fas fa-check-circle"></i>
-              <span>Downloaded successfully!</span>
-            </div>
-            
-            <p id="instagram-error" class="error"></p>
-          </div>
-
-          <!-- Facebook -->
-          <div class="card" data-platform="facebook">
-            <div class="card-header">
-              <i class="fab fa-facebook" style="color: #1877f2"></i>
-              <h2>Facebook Downloader</h2>
-              <span class="download-method file-based">📁 Secure</span>
-            </div>
-            <p>Download Facebook videos. Reliable downloads from secure platform.</p>
-            <div class="input-group">
-              <input
-                type="url"
-                id="facebook-url"
-                placeholder="Paste Facebook URL"
-              />
-              <button class="paste-btn" onclick="pasteFromClipboard('facebook-url')">
-                <i class="fas fa-paste"></i>
-              </button>
-            </div>
-            <button class="facebook-btn" onclick="download('facebook')">
-              <i class="fas fa-download"></i>
-              <span>Download</span>
-            </button>
-            
-            <!-- Download Status Messages -->
-            <div id="facebook-download-status" class="download-status" style="display: none;">
-              <div class="loading-spinner"></div>
-              <span>Starting download...</span>
-            </div>
-            <div id="facebook-success" class="success-message" style="display: none;">
-              <i class="fas fa-check-circle"></i>
-              <span>Downloaded successfully!</span>
-            </div>
-            
-            <p id="facebook-error" class="error"></p>
-          </div>
-
-          <!-- X (Twitter) -->
-          <div class="card" data-platform="x">
-            <div class="card-header">
-              <i class="fab fa-x-twitter" style="color: #000000"></i>
-              <h2>X (Twitter) Downloader</h2>
-              <span class="download-method streaming">🚀 Streaming</span>
-            </div>
-            <p>Download videos from X (formerly Twitter). Lightning fast with real-time progress!</p>
-            <div class="input-group">
-              <input type="url" id="x-url" placeholder="Paste X (Twitter) URL" />
-              <button class="paste-btn" onclick="pasteFromClipboard('x-url')">
-                <i class="fas fa-paste"></i>
-              </button>
-            </div>
-            <button class="x-btn" onclick="download('x')">
-              <i class="fas fa-download"></i>
-              <span>Download</span>
-            </button>
-            
-            <!-- Download Status Messages -->
-            <div id="x-download-status" class="download-status" style="display: none;">
-              <div class="loading-spinner"></div>
-              <span>Starting download...</span>
-            </div>
-            <div id="x-success" class="success-message" style="display: none;">
-              <i class="fas fa-check-circle"></i>
-              <span>Downloaded successfully!</span>
-            </div>
-            
-            <p id="x-error" class="error"></p>
-          </div>
-        </div>
-      </section>
-        <!-- How It Works Section -->
-      <section class="how-it-works" id="how-to-use">
-        <div class="section-header">
-          <h2>How It Works</h2>
-          <p>Download your favorite content in just 3 simple steps</p>
-        </div>
-        <div class="steps-container">
-          <div class="step">
-            <div class="step-number">1</div>
-            <div class="step-content">
-              <h3>Copy Link</h3>
-              <p>Copy the URL of the video you want to download from any supported platform</p>
-            </div>
-          </div>
-          <div class="step">
-            <div class="step-number">2</div>
-            <div class="step-content">
-              <h3>Paste & Choose</h3>
-              <p>Paste the link and select your preferred format and quality</p>
-            </div>
-          </div>
-          <div class="step">
-            <div class="step-number">3</div>
-            <div class="step-content">
-              <h3>Download</h3>
-              <p>Click download and enjoy your content offline!</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Features Section -->
-      <section class="features-section" id="features">
-        <div class="section-header">
-          <h2>Why Choose Mbuvi Tech Downloader?</h2>
-          <p>Experience the fastest and most reliable social media downloader</p>
-        </div>
-        <div class="features-grid">
-          <div class="feature-card">
-            <div class="feature-icon">
-              <i class="fas fa-bolt"></i>
-            </div>
-            <h3>Lightning Fast</h3>
-            <p>Streaming downloads for YouTube & X with instant browser progress. Reliable downloads for all platforms.</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">
-              <i class="fas fa-shield-alt"></i>
-            </div>
-            <h3>100% Safe & Secure</h3>
-            <p>No malware, no ads, completely secure downloads. Your privacy and security are our top priority.</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">
-              <i class="fas fa-mobile-alt"></i>
-            </div>
-            <h3>Mobile Friendly</h3>
-            <p>Works perfectly on all devices and browsers. Download on the go from your phone or tablet.</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">
-              <i class="fas fa-infinity"></i>
-            </div>
-            <h3>Unlimited Downloads</h3>
-            <p>No limits on downloads, completely free to use. Download as many videos as you want, anytime.</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">
-              <i class="fas fa-ranking-star"></i>
-            </div>
-            <h3>High Quality</h3>
-            <p>Download videos in up to 4K resolution and audio in crystal clear quality up to 320kbps.</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">
-              <i class="fas fa-music"></i>
-            </div>
-            <h3>Audio Extraction</h3>
-            <p>Extract audio from any video and download as MP3. Perfect for creating your music library.</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- Supported Formats Section -->
-      <section class="formats-section" id="formats">
-        <div class="section-header">
-          <h2>Supported Formats & Quality</h2>
-          <p>Download in the format that works best for you</p>
-        </div>
-        <div class="formats-grid">
-          <div class="format-category">
-            <h3><i class="fas fa-video"></i> Video Formats</h3>
-            <div class="format-list">
-              <span class="format-tag">MP4</span>
-              <span class="format-tag">WEBM</span>
-              <span class="format-tag">AVI</span>
-              <span class="format-tag">MOV</span>
-            </div>
-            <div class="quality-list">
-              <span class="quality-tag">4K (2160p)</span>
-              <span class="quality-tag">Full HD (1080p)</span>
-              <span class="quality-tag">HD (720p)</span>
-              <span class="quality-tag">SD (480p/360p)</span>
-            </div>
-          </div>
-          <div class="format-category">
-            <h3><i class="fas fa-music"></i> Audio Formats</h3>
-            <div class="format-list">
-              <span class="format-tag">MP3</span>
-              <span class="format-tag">WAV</span>
-              <span class="format-tag">AAC</span>
-              <span class="format-tag">OGG</span>
-            </div>
-            <div class="quality-list">
-              <span class="quality-tag">320 kbps</span>
-              <span class="quality-tag">256 kbps</span>
-              <span class="quality-tag">192 kbps</span>
-              <span class="quality-tag">128 kbps</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- FAQ Section -->
-      <section class="faq-section" id="faq">
-        <div class="section-header">
-          <h2>Frequently Asked Questions</h2>
-          <p>Got questions? We've got answers!</p>
-        </div>
-        <div class="faq-container">
-          <div class="faq-item">
-            <div class="faq-question">
-              <h3>Is this downloader free to use?</h3>
-              <i class="fas fa-chevron-down"></i>
-            </div>
-            <div class="faq-answer">
-              <p>Yes! Our downloader is completely free to use with no hidden charges or subscription fees. Download unlimited content from all supported platforms.</p>
-            </div>
-          </div>
-          <div class="faq-item">
-            <div class="faq-question">
-              <h3>Do I need to install any software?</h3>
-              <i class="fas fa-chevron-down"></i>
-            </div>
-            <div class="faq-answer">
-              <p>No installation required! Our downloader works directly in your web browser. Just paste the link and download - it's that simple.</p>
-            </div>
-          </div>
-          <div class="faq-item">
-            <div class="faq-question">
-              <h3>What video quality can I download?</h3>
-              <i class="fas fa-chevron-down"></i>
-            </div>
-            <div class="faq-answer">
-              <p>You can download videos in various qualities from 360p up to 4K (2160p), depending on the original video quality and platform availability.</p>
-            </div>
-          </div>
-          <div class="faq-item">
-            <div class="faq-question">
-              <h3>Why are some downloads faster than others?</h3>
-              <i class="fas fa-chevron-down"></i>
-            </div>
-            <div class="faq-answer">
-              <p>We use streaming technology for YouTube and X/Twitter which provides instant downloads with browser progress. Other platforms use secure file-based downloads for maximum reliability.</p>
-            </div>
-          </div>
-          <div class="faq-item">
-            <div class="faq-question">
-              <h3>Is it legal to download videos?</h3>
-              <i class="fas fa-chevron-down"></i>
-            </div>
-            <div class="faq-answer">
-              <p>You should only download content that you have permission to download or content that is in the public domain. Always respect copyright laws and platform terms of service.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <!-- Footer -->
-    <footer class="footer">
-      <div class="footer-content">
-        <div class="footer-section brand-section">
-          <h3><i class="fas fa-download"></i> Mbuvi Tech</h3>
-          <p>Your trusted partner for social media content downloads. Fast, secure, and reliable downloads from all major platforms.</p>
-          <div class="social-links">
-            <a href="https://instagram.com/_mbuvi" target="_blank" rel="noopener" aria-label="Follow us on Instagram">
-              <i class="fab fa-instagram"></i>
-            </a>
-            <a href="https://github.com/cheekydavy" target="_blank" rel="noopener" aria-label="Check our GitHub">
-              <i class="fab fa-github"></i>
-            </a>
-            <a href="https://sessions.mbuvitech.site" target="_blank" rel="noopener" aria-label="Visit our WhatsApp Bot">
-              <i class="fab fa-whatsapp"></i>
-            </a>
-            <a href="mailto:mbuvidavid26@gmail.com" aria-label="Email us">
-              <i class="fas fa-envelope"></i>
-            </a>
-          </div>
-        </div>
-        
-        <div class="footer-section">
-          <h4>Supported Platforms</h4>
-          <ul>
-            <li><i class="fab fa-youtube"></i> YouTube <span class="method-badge streaming">Streaming</span></li>
-            <li><i class="fab fa-tiktok"></i> TikTok <span class="method-badge secure">Secure</span></li>
-            <li><i class="fab fa-instagram"></i> Instagram <span class="method-badge secure">Secure</span></li>
-            <li><i class="fab fa-facebook"></i> Facebook <span class="method-badge secure">Secure</span></li>
-            <li><i class="fab fa-x-twitter"></i> X (Twitter) <span class="method-badge streaming">Streaming</span></li>
-          </ul>
-        </div>
-        
-        <div class="footer-section">
-          <h4>Our Services</h4>
-          <ul>
-            <li><a href="https://sessions.mbuvitech.site" target="_blank">WhatsApp Bot</a></li>
-            <li><a href="#downloaders">Video Downloader</a></li>
-            <li><a href="#formats">Audio Extractor</a></li>
-            <li><a href="#features">Format Converter</a></li>
-            <li><a href="#faq">Support & FAQ</a></li>
-          </ul>
-        </div>
-        
-        <div class="footer-section">
-          <h4>Resources</h4>
-          <ul>
-            <li><a href="#how-to-use">How to Use</a></li>
-            <li><a href="#faq">FAQ</a></li>
-            <li><a href="#formats">Supported Formats</a></li>
-            <li><a href="https://sessions.mbuvitech.site" target="_blank">API Documentation</a></li>
-            <li><a href="mailto:mbuvidavid26@gmail.com">Contact Support</a></li>
-          </ul>
-        </div>
-      </div>
-      
-      <div class="footer-bottom">
-        <div class="footer-bottom-content">
-          <p id="footer-copyright">&copy; 2026 Mbuvi Tech. All rights reserved.</p>
-          <div class="footer-links">
-            <a href="https://sessions.mbuvitech.site" target="_blank">WhatsApp Bot</a>
-            <span>•</span>
-            <a href="https://instagram.com/_mbuvi" target="_blank">Instagram</a>
-            <span>•</span>
-            <a href="https://github.com/cheekydavy" target="_blank">GitHub</a>
-          </div>
-        </div>
-      </div>
-    </footer>
-
-    <script src="/static/script.js"></script>
-  </body>
+  <script src="/static/script.js"></script>
+</body>
 </html>

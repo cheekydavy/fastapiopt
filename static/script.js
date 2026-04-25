@@ -1,55 +1,46 @@
 class MediaDownloader {
   constructor() {
-    // YouTube search service URL (deployed on Fly.io)
     this.YOUTUBE_SEARCH_URL = "https://p01--yts--wv25f6hgmh8b.code.run"
-    // Cycling status messages for long downloads
-    this.statusMessages = ["Fetching media...", "Downloading...", "Almost there...", "Finalizing..."]
+    this.statusMessages = ["Fetching media…", "Downloading…", "Almost there…", "Finalizing…"]
     this.statusTimers = {}
     this.initEventListeners()
   }
 
   initEventListeners() {
+    // Hamburger nav toggle
     const hamburger = document.getElementById("hamburger")
-    const navMenu = document.getElementById("nav-menu")
-
+    const navMenu   = document.getElementById("nav-menu")
     if (hamburger && navMenu) {
       hamburger.addEventListener("click", () => {
-        hamburger.classList.toggle("active")
-        navMenu.classList.toggle("active")
+        const open = hamburger.classList.toggle("active")
+        navMenu.classList.toggle("active", open)
+        hamburger.setAttribute("aria-expanded", open)
       })
-
-      document.querySelectorAll(".nav-link").forEach((n) =>
+      document.querySelectorAll(".nav-link").forEach(n =>
         n.addEventListener("click", () => {
           hamburger.classList.remove("active")
           navMenu.classList.remove("active")
-        }),
+          hamburger.setAttribute("aria-expanded", "false")
+        })
       )
     }
 
-    const faqItems = document.querySelectorAll(".faq-item")
-    faqItems.forEach((item) => {
-      const question = item.querySelector(".faq-question")
-      question.addEventListener("click", () => {
-        const isActive = item.classList.contains("active")
-        faqItems.forEach((faq) => faq.classList.remove("active"))
-        if (!isActive) item.classList.add("active")
-      })
-    })
+    // FAQ — handled natively by <details>/<summary>, no JS needed
 
-    // FIX #5: Enter key on YouTube search (already existed) + all URL inputs
+    // Enter key on YouTube search
     const youtubeSearch = document.getElementById("youtube-search")
     if (youtubeSearch) {
-      youtubeSearch.addEventListener("keypress", (e) => {
+      youtubeSearch.addEventListener("keypress", e => {
         if (e.key === "Enter") this.searchYouTube()
       })
     }
 
-    // FIX #5: Enter key on all URL paste inputs
+    // Enter key on all URL inputs
     const urlInputs = ["youtube-url", "tiktok-url", "instagram-url", "facebook-url", "x-url"]
-    urlInputs.forEach((id) => {
+    urlInputs.forEach(id => {
       const el = document.getElementById(id)
       if (el) {
-        el.addEventListener("keypress", (e) => {
+        el.addEventListener("keypress", e => {
           if (e.key === "Enter") {
             const platform = id.replace("-url", "")
             this.download(platform)
@@ -58,27 +49,30 @@ class MediaDownloader {
       }
     })
 
-    // FIX #7: Dynamic copyright year
+    // Dynamic copyright year
     const copyrightEl = document.getElementById("footer-copyright")
     if (copyrightEl) {
       copyrightEl.textContent = `© ${new Date().getFullYear()} Mbuvi Tech. All rights reserved.`
     }
   }
 
+  // ── YouTube quality options ──────────────────────────────
   updateYouTubeQuality() {
-    const type = document.getElementById("youtube-type").value
-    const qualitySelect = document.getElementById("youtube-quality")
-    qualitySelect.innerHTML = ""
-    const options = type === "video" ? ["360p", "480p", "720p", "1080p"] : ["128K", "192K", "320K"]
-    options.forEach((opt) => {
-      const option = document.createElement("option")
-      option.value = opt
-      option.textContent = opt
-      qualitySelect.appendChild(option)
+    const type    = document.getElementById("youtube-type").value
+    const select  = document.getElementById("youtube-quality")
+    select.innerHTML = ""
+    // Audio is default (first option in HTML), so audio qualities load first
+    const options = type === "audio"
+      ? ["128K", "192K", "320K"]
+      : ["360p", "480p", "720p", "1080p"]
+    options.forEach(opt => {
+      const o = document.createElement("option")
+      o.value = o.textContent = opt
+      select.appendChild(o)
     })
   }
 
-  // FIX #17: Toast notification system — replaces per-card error/success divs
+  // ── Toast ────────────────────────────────────────────────
   showToast(message, type = "error") {
     let container = document.getElementById("toast-container")
     if (!container) {
@@ -86,33 +80,29 @@ class MediaDownloader {
       container.id = "toast-container"
       document.body.appendChild(container)
     }
-
     const toast = document.createElement("div")
     toast.className = `toast toast-${type}`
     toast.innerHTML = `
-      <i class="fas ${type === "success" ? "fa-check-circle" : "fa-exclamation-circle"}"></i>
+      <i class="fas ${type === "success" ? "fa-check-circle" : "fa-exclamation-circle"}" aria-hidden="true"></i>
       <span>${message}</span>
-      <button class="toast-close" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
-    `
+      <button class="toast-close" aria-label="Dismiss" onclick="this.parentElement.remove()">
+        <i class="fas fa-times" aria-hidden="true"></i>
+      </button>`
     container.appendChild(toast)
-
-    // Animate in
     requestAnimationFrame(() => toast.classList.add("toast-visible"))
-
-    // Auto-remove after 5s
     setTimeout(() => {
       toast.classList.remove("toast-visible")
       setTimeout(() => toast.remove(), 400)
     }, 5000)
   }
 
+  // ── Error / status helpers ───────────────────────────────
   showError(platform, message) {
-    // Keep inline error for accessibility, but also show toast
-    const errorElement = document.getElementById(`${platform}-error`)
-    if (errorElement) {
-      errorElement.textContent = message
-      errorElement.style.display = "block"
-      setTimeout(() => { errorElement.style.display = "none" }, 5000)
+    const el = document.getElementById(`${platform}-error`)
+    if (el) {
+      el.textContent = message
+      el.hidden = false
+      setTimeout(() => { el.hidden = true }, 6000)
     }
     this.showToast(message, "error")
   }
@@ -120,32 +110,27 @@ class MediaDownloader {
   clearInputs(platform) {
     const urlInput = document.getElementById(`${platform}-url`)
     if (urlInput) urlInput.value = ""
-
     if (platform === "youtube") {
-      const searchInput = document.getElementById("youtube-search")
-      if (searchInput) searchInput.value = ""
+      const s = document.getElementById("youtube-search")
+      if (s) s.value = ""
     }
-
-    const typeSelect = document.getElementById(`${platform}-type`)
-    if (typeSelect) typeSelect.selectedIndex = 0
-
+    const typeSelect    = document.getElementById(`${platform}-type`)
     const qualitySelect = document.getElementById(`${platform}-quality`)
+    if (typeSelect)    typeSelect.selectedIndex = 0
     if (qualitySelect) qualitySelect.selectedIndex = 0
   }
 
-  // FIX #6: Cycling status messages
+  // ── Cycling status messages ──────────────────────────────
   startStatusCycle(platform) {
-    const statusElement = document.getElementById(`${platform}-download-status`)
-    if (!statusElement) return
-    const textSpan = statusElement.querySelector("span")
-    if (!textSpan) return
-
+    const el   = document.getElementById(`${platform}-download-status`)
+    if (!el) return
+    const span = el.querySelector("span:last-child")
+    if (!span) return
     let idx = 0
-    textSpan.textContent = this.statusMessages[0]
-
+    span.textContent = this.statusMessages[0]
     this.statusTimers[platform] = setInterval(() => {
       idx = (idx + 1) % this.statusMessages.length
-      textSpan.textContent = this.statusMessages[idx]
+      span.textContent = this.statusMessages[idx]
     }, 6000)
   }
 
@@ -157,224 +142,183 @@ class MediaDownloader {
   }
 
   showDownloadStatus(platform) {
-    const statusElement = document.getElementById(`${platform}-download-status`)
-    const successElement = document.getElementById(`${platform}-success`)
-    if (successElement) successElement.style.display = "none"
-    if (statusElement) {
-      statusElement.style.display = "flex"
-      // FIX #16: Scroll status into view on mobile
-      statusElement.scrollIntoView({ behavior: "smooth", block: "nearest" })
+    const statusEl  = document.getElementById(`${platform}-download-status`)
+    const successEl = document.getElementById(`${platform}-success`)
+    if (successEl) successEl.hidden = true
+    if (statusEl) {
+      statusEl.hidden = false
+      statusEl.scrollIntoView({ behavior: "smooth", block: "nearest" })
     }
     this.startStatusCycle(platform)
   }
 
   showDownloadSuccess(platform) {
     this.stopStatusCycle(platform)
-    const statusElement = document.getElementById(`${platform}-download-status`)
-    const successElement = document.getElementById(`${platform}-success`)
-    if (statusElement) statusElement.style.display = "none"
-    if (successElement) {
-      successElement.style.display = "flex"
-      setTimeout(() => { successElement.style.display = "none" }, 5000)
+    const statusEl  = document.getElementById(`${platform}-download-status`)
+    const successEl = document.getElementById(`${platform}-success`)
+    if (statusEl)  statusEl.hidden = true
+    if (successEl) {
+      successEl.hidden = false
+      setTimeout(() => { successEl.hidden = true }, 5000)
     }
     this.showToast("Downloaded successfully! 🎉", "success")
   }
 
+  // ── Clipboard paste ──────────────────────────────────────
   async pasteFromClipboard(inputId) {
     try {
-      const text = await navigator.clipboard.readText()
-      document.getElementById(inputId).value = text
+      const text  = await navigator.clipboard.readText()
       const input = document.getElementById(inputId)
-      const originalBorder = input.style.borderColor
-      input.style.borderColor = "#48bb78"
-      setTimeout(() => { input.style.borderColor = originalBorder }, 1000)
-    } catch (err) {
-      console.log("Clipboard access not available")
+      input.value = text
+      input.style.borderColor = "var(--ok)"
+      setTimeout(() => { input.style.borderColor = "" }, 1200)
+    } catch {
       const platform = inputId.split("-")[0]
-      this.showError(platform, "Please paste the URL manually")
+      this.showError(platform, "Clipboard access denied — paste manually.")
     }
   }
 
+  // ── YouTube search ───────────────────────────────────────
   async searchYouTube() {
-    const query = document.getElementById("youtube-search").value.trim()
-    const loading = document.getElementById("youtube-loading")
+    const query   = document.getElementById("youtube-search").value.trim()
+    const loader  = document.getElementById("youtube-loading")
+    if (!query) { this.showError("youtube", "Enter a song name to search"); return }
 
-    if (!query) {
-      this.showError("youtube", "Please enter a song name")
-      return
-    }
-
-    loading.style.display = "flex"
-
+    loader.hidden = false
+    loader.setAttribute("aria-busy", "true")
     try {
-      const response = await fetch(`${this.YOUTUBE_SEARCH_URL}/api/ytsearch?q=${encodeURIComponent(query)}`)
-      const data = await response.json()
+      const res  = await fetch(`${this.YOUTUBE_SEARCH_URL}/api/ytsearch?q=${encodeURIComponent(query)}`)
+      const data = await res.json()
       if (data.url) {
-        document.getElementById("youtube-url").value = data.url
+        document.getElementById("youtube-url").value    = data.url
         document.getElementById("youtube-search").value = ""
       } else {
         this.showError("youtube", data.error || "Song not found")
       }
-    } catch (err) {
-      this.showError("youtube", "Search failed - Make sure YouTube search service is running")
+    } catch {
+      this.showError("youtube", "Search failed — check your connection")
     } finally {
-      loading.style.display = "none"
+      loader.hidden = true
+      loader.setAttribute("aria-busy", "false")
     }
   }
 
+  // ── URL validation ───────────────────────────────────────
   validateURL(platform, url) {
     const patterns = {
-      youtube: /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/.+/,
-      // FIX #3: Added vt.tiktok.com to the TikTok pattern
-      tiktok: /^https?:\/\/(www\.)?(tiktok\.com|vm\.tiktok\.com|vt\.tiktok\.com)\/.+/,
+      youtube:   /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/.+/,
+      tiktok:    /^https?:\/\/(www\.)?(tiktok\.com|vm\.tiktok\.com|vt\.tiktok\.com)\/.+/,
       instagram: /^https?:\/\/(www\.)?instagram\.com\/.+/,
-      facebook: /^https?:\/\/(www\.)?facebook\.com\/.+/,
-      x: /^https?:\/\/(www\.)?(twitter\.com|x\.com)\/.+/,
+      facebook:  /^https?:\/\/(www\.)?facebook\.com\/.+/,
+      x:         /^https?:\/\/(www\.)?(twitter\.com|x\.com)\/.+/,
     }
     return patterns[platform].test(url)
   }
 
-  // FIX #4: Parse JSON error body from server responses
+  // ── Fetch download with proper error parsing ─────────────
   async downloadFile(url) {
     const response = await fetch(url)
-
     if (!response.ok) {
-      let errorMsg = `HTTP ${response.status}`
+      let msg = `HTTP ${response.status}`
       try {
-        const contentType = response.headers.get("Content-Type") || ""
-        if (contentType.includes("application/json")) {
-          const errJson = await response.json()
-          errorMsg = errJson.detail || errJson.error || errJson.message || errorMsg
+        const ct = response.headers.get("Content-Type") || ""
+        if (ct.includes("application/json")) {
+          const j = await response.json()
+          msg = j.detail || j.error || j.message || msg
         } else {
-          const errText = await response.text()
-          errorMsg = errText || errorMsg
+          msg = (await response.text()) || msg
         }
-      } catch (_) { /* ignore parse errors */ }
-      throw new Error(errorMsg)
+      } catch { /* ignore */ }
+      throw new Error(msg)
     }
 
-    const contentDisposition = response.headers.get("Content-Disposition")
-    let filename = "download"
-
-    if (contentDisposition) {
-      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
-      if (filenameMatch) {
-        filename = filenameMatch[1].replace(/['"]/g, "")
-      }
-    }
+    const cd = response.headers.get("Content-Disposition") || ""
+    const m  = cd.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+    const filename = m ? m[1].replace(/['"]/g, "") : "download"
 
     const blob = await response.blob()
-    const downloadUrl = window.URL.createObjectURL(blob)
-
-    const a = document.createElement("a")
-    a.href = downloadUrl
+    const a    = document.createElement("a")
+    a.href     = window.URL.createObjectURL(blob)
     a.download = filename
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
-
-    window.URL.revokeObjectURL(downloadUrl)
+    window.URL.revokeObjectURL(a.href)
     return true
   }
 
+  // ── Main download handler ────────────────────────────────
   async download(platform) {
-    const urlElement = document.getElementById(`${platform}-url`)
-    const url = urlElement.value.trim()
+    const urlEl = document.getElementById(`${platform}-url`)
+    const url   = urlEl.value.trim()
 
-    if (!url) return this.showError(platform, "Please enter a URL")
+    if (!url)                             return this.showError(platform, "Please enter a URL")
     if (!this.validateURL(platform, url)) return this.showError(platform, `Invalid ${platform} URL`)
 
-    const button = document.querySelector(`.${platform}-btn`)
-    const btnText = button.querySelector("span")
-    const btnIcon = button.querySelector("i")
+    const btn     = document.querySelector(`.${platform}-btn`)
+    const btnText = btn.querySelector("span:last-child")
+    const btnIcon = btn.querySelector("i")
 
-    const originalText = btnText.textContent
-    const originalIcon = btnIcon.className
+    const origText = btnText.textContent
+    const origIcon = btnIcon.className
 
-    btnText.textContent = "Downloading..."
-    btnIcon.className = "fas fa-spinner fa-spin"
-    button.disabled = true
+    btnText.textContent = "Downloading…"
+    btnIcon.className   = "fas fa-spinner fa-spin"
+    btn.disabled        = true
 
     try {
-      const downloadUrl = this.buildHybridDownloadUrl(platform, url)
       this.showDownloadStatus(platform)
-
-      // FIX #1: YouTube now uses the same fetch-based downloadFile() approach
-      await this.downloadFile(downloadUrl)
+      await this.downloadFile(this.buildDownloadUrl(platform, url))
       this.showDownloadSuccess(platform)
       this.clearInputs(platform)
-    } catch (error) {
+    } catch (err) {
       this.stopStatusCycle(platform)
-      const statusElement = document.getElementById(`${platform}-download-status`)
-      if (statusElement) statusElement.style.display = "none"
-      this.showError(platform, `Download failed: ${error.message}`)
+      const statusEl = document.getElementById(`${platform}-download-status`)
+      if (statusEl) statusEl.hidden = true
+      this.showError(platform, `Download failed: ${err.message}`)
     } finally {
-      btnText.textContent = originalText
-      btnIcon.className = originalIcon
-      button.disabled = false
+      btnText.textContent = origText
+      btnIcon.className   = origIcon
+      btn.disabled        = false
     }
   }
 
-  buildHybridDownloadUrl(platform, url) {
-    const encodedUrl = encodeURIComponent(url)
-
+  // ── Build endpoint URL ───────────────────────────────────
+  buildDownloadUrl(platform, url) {
+    const enc = encodeURIComponent(url)
     switch (platform) {
       case "youtube": {
-        const type = document.getElementById("youtube-type").value
+        const type    = document.getElementById("youtube-type").value
         const quality = document.getElementById("youtube-quality").value
-        if (type === "audio") {
-          return `/download/audio/stream?song=${encodedUrl}&quality=${quality}`
-        } else {
-          return `/download/video/stream?song=${encodedUrl}&quality=${quality}`
-        }
+        return type === "audio"
+          ? `/download/audio/stream?song=${enc}&quality=${quality}`
+          : `/download/video/stream?song=${enc}&quality=${quality}`
       }
       case "x":
-        return `/stream/xurl?url=${encodedUrl}`
-
+        return `/stream/xurl?url=${enc}`
       case "tiktok": {
-        const tiktokType = document.getElementById("tiktok-type").value
-        const endpoint = tiktokType === "video" ? "tiktokurl" : "tiktoaudio"
-        return `/api/${endpoint}?url=${encodedUrl}`
+        const t = document.getElementById("tiktok-type").value
+        return `/api/${t === "video" ? "tiktokurl" : "tiktoaudio"}?url=${enc}`
       }
       case "instagram":
-        return `/download/iglink?url=${encodedUrl}`
-
+        return `/download/iglink?url=${enc}`
       case "facebook":
-        return `/api/fburl?url=${encodedUrl}`
-
+        return `/api/fburl?url=${enc}`
       default:
         throw new Error("Unsupported platform")
     }
   }
-
-  // FIX #2: buildDownloadUrl() removed (was dead code — replaced by buildHybridDownloadUrl)
-
-  getDownloadMethod(platform) {
-    const methods = {
-      youtube: "🚀 Fast (fetch-based with browser progress)",
-      x: "🚀 Fast (fetch-based with browser progress)",
-      tiktok: "📁 File-based (Reliable for TikTok)",
-      instagram: "📁 File-based (Reliable for secure platform)",
-      facebook: "📁 File-based (Reliable for secure platform)",
-    }
-    return methods[platform] || "Unknown"
-  }
 }
 
+// ── Boot ─────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
-  const downloader = new MediaDownloader()
+  const dl = new MediaDownloader()
 
-  window.updateYouTubeQuality = () => downloader.updateYouTubeQuality()
-  window.pasteFromClipboard = (inputId) => downloader.pasteFromClipboard(inputId)
-  window.searchYouTube = () => downloader.searchYouTube()
-  window.download = (platform) => downloader.download(platform)
+  window.updateYouTubeQuality  = ()      => dl.updateYouTubeQuality()
+  window.pasteFromClipboard    = inputId => dl.pasteFromClipboard(inputId)
+  window.searchYouTube         = ()      => dl.searchYouTube()
+  window.download              = p       => dl.download(p)
 
-  downloader.updateYouTubeQuality()
-
-  console.log("🔧 Download Methods:")
-  console.log("YouTube:", downloader.getDownloadMethod("youtube"))
-  console.log("X/Twitter:", downloader.getDownloadMethod("x"))
-  console.log("TikTok:", downloader.getDownloadMethod("tiktok"))
-  console.log("Instagram:", downloader.getDownloadMethod("instagram"))
-  console.log("Facebook:", downloader.getDownloadMethod("facebook"))
+  // Populate quality dropdown — audio is the default type
+  dl.updateYouTubeQuality()
 })

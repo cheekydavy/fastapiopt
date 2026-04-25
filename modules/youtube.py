@@ -181,6 +181,9 @@ async def download_to_temp(url: str, format_selector: str, output_path: Path,
         "yt-dlp",
         "-f", format_selector,
         "--merge-output-format", "mp4",
+        "--write-thumbnail",       # download thumbnail
+        "--embed-thumbnail",       # embed as video cover art (mp4 supports this)
+        "--convert-thumbnails", "jpg",
         "-o", str(output_path),
         "--no-playlist",
     ] + JS_ARGS
@@ -209,12 +212,15 @@ async def download_to_temp(url: str, format_selector: str, output_path: Path,
 
 async def download_to_temp_audio(url: str, format_selector: str, output_path: Path,
                                  audio_quality: str, cookies_file: Optional[Path]) -> bool:
-    """Download and convert audio to mp3 via yt-dlp -x."""
+    """Download and convert audio to mp3 via yt-dlp -x, with embedded thumbnail."""
     cmd = [
         "yt-dlp",
         "-x",
         "--audio-format", "mp3",
         "--audio-quality", audio_quality,
+        "--write-thumbnail",       # download the thumbnail file
+        "--embed-thumbnail",       # embed it into the mp3 as cover art
+        "--convert-thumbnails", "jpg",  # ensure compatible format for id3
         "-o", str(output_path),
         "--no-playlist",
     ] + JS_ARGS
@@ -238,19 +244,20 @@ async def download_to_temp_audio(url: str, format_selector: str, output_path: Pa
 async def find_output_file(base_path: Path) -> Optional[Path]:
     """
     yt-dlp may append an extension or change it (e.g. .mp4, .mkv, .webm).
-    Find the actual output file by stem.
+    Find the actual media output file by stem, skipping thumbnail files (.jpg, .png, .webp).
     """
+    THUMBNAIL_EXTS = {'.jpg', '.jpeg', '.png', '.webp'}
     parent = base_path.parent
     stem = base_path.stem
     for f in parent.iterdir():
-        if f.stem == stem and f.is_file():
+        if f.stem == stem and f.is_file() and f.suffix.lower() not in THUMBNAIL_EXTS:
             return f
     return None
 
 
 async def stream_file_response(file_path: Path, media_type: str,
                                download_name: str) -> StreamingResponse:
-    """Stream a file from disk, deleting it after."""
+    """Stream a file from disk, deleting it and any sidecar thumbnail files after."""
     file_size = file_path.stat().st_size
 
     async def file_streamer():
@@ -259,11 +266,20 @@ async def stream_file_response(file_path: Path, media_type: str,
                 while chunk := f.read(1024 * 1024):  # 1MB chunks
                     yield chunk
         finally:
+            # Clean up the media file
             try:
                 file_path.unlink()
                 logger.info(f"Cleaned up temp file: {file_path}")
             except Exception:
                 pass
+            # Clean up any sidecar thumbnail files yt-dlp wrote alongside
+            for ext in ('.jpg', '.jpeg', '.png', '.webp'):
+                sidecar = file_path.with_suffix(ext)
+                if sidecar.exists():
+                    try:
+                        sidecar.unlink()
+                    except Exception:
+                        pass
 
     return StreamingResponse(
         file_streamer(),
@@ -429,7 +445,7 @@ async def download_youtube_video_stream(
             break
         else:
             logger.warning(f"Format '{fmt}' failed or produced empty file, trying next...")
-            # Clean up any partial file
+            # Clean up any partial files including sidecar thumbnails
             for f in TEMP_DIR.glob(f"{temp_id}*"):
                 try:
                     f.unlink()
