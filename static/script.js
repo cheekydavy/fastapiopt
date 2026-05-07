@@ -1,6 +1,6 @@
 class MediaDownloader {
   constructor() {
-    this.YOUTUBE_SEARCH_URL = "https://p01--yts--wv25f6hgmh8b.code.run"
+    this.YOUTUBE_SEARCH_URL = "https://ytsapi-842c7cd1d67b.herokuapp.com"
     this.statusMessages = ["Fetching media…", "Downloading…", "Almost there…", "Finalizing…"]
     this.statusTimers = {}
     this.initEventListeners()
